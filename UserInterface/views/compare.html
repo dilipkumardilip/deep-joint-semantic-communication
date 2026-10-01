@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-SNR Comparison</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4f6ef7;
+      --green:   #10b981;
+      --amber:   #f59e0b;
+      --rose:    #f43f5e;
+      --border:  #e5eaf5;
+      --bg:      #f8faff;
+      --surface: #ffffff;
+      --text:    #0f1833;
+      --muted:   #7a8bae;
+      --r:       10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 1.5rem;
+      display: flex; flex-direction: column; gap: 1.25rem;
+    }
+
+    h1 {
+      font-size: 1rem; font-weight: 700; color: var(--text);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .subtitle { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; }
+
+    .controls {
+      display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 0.85rem 1.1rem;
+      box-shadow: 0 1px 4px rgba(15,24,51,0.06);
+    }
+    .controls label { font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+    .snr-chip {
+      padding: 0.28rem 0.7rem; border-radius: 9999px;
+      font-size: 0.73rem; font-weight: 600; cursor: pointer;
+      border: 1.5px solid var(--border);
+      background: var(--bg); color: var(--muted);
+      transition: all 0.15s;
+    }
+    .snr-chip.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .snr-chip:hover:not(.selected) { border-color: var(--primary); color: var(--primary); }
+
+    .btn-run {
+      margin-left: auto;
+      padding: 0.45rem 1.2rem; border-radius: var(--r);
+      background: var(--primary); color: #fff;
+      font-size: 0.8rem; font-weight: 600; cursor: pointer;
+      border: none; box-shadow: 0 2px 8px rgba(79,110,247,0.3);
+      transition: all 0.15s; display: flex; align-items: center; gap: 0.4rem;
+    }
+    .btn-run:hover { box-shadow: 0 4px 16px rgba(79,110,247,0.4); transform: translateY(-1px); }
+    .btn-run:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Grid of comparison panels */
+    .compare-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .snr-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--r); overflow: hidden;
+      box-shadow: 0 2px 8px rgba(15,24,51,0.06);
+      display: flex; flex-direction: column;
+      transition: box-shadow 0.2s;
+    }
+    .snr-card:hover { box-shadow: 0 4px 20px rgba(15,24,51,0.1); }
+    .snr-card.loading { opacity: 0.6; }
+
+    .snr-card-header {
+      padding: 0.55rem 0.85rem;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .snr-label-big { font-size: 0.8rem; font-weight: 700; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+    .psnr-badge {
+      font-size: 0.68rem; font-weight: 700;
+      padding: 0.12rem 0.4rem; border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .psnr-badge.high   { background: rgba(16,185,129,0.12); color: #047857; }
+    .psnr-badge.medium { background: rgba(245,158,11,0.12); color: #b45309; }
+    .psnr-badge.low    { background: rgba(244,63,94,0.12);  color: #be123c; }
+    .psnr-badge.none   { background: var(--bg); color: var(--muted); }
+
+    .img-pair {
+      display: grid; grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid var(--border);
+    }
+    .img-slot {
+      display: flex; flex-direction: column; align-items: center; padding: 0.5rem;
+      gap: 0.3rem;
+    }
+    .img-slot:first-child { border-right: 1px solid var(--border); }
+    .img-slot img {
+      width: 100%; aspect-ratio: 1; object-fit: contain;
+      image-rendering: pixelated;
+      background: var(--bg); border-radius: 4px;
+    }
+    .img-slot .slot-label { font-size: 0.6rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+    .snr-card-footer {
+      padding: 0.45rem 0.85rem;
+      font-size: 0.67rem; font-family: 'JetBrains Mono', monospace;
+      color: var(--muted); text-align: center;
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 24px; height: 24px; border: 3px solid var(--border);
+      border-top-color: var(--primary); border-radius: 50%;
+      animation: spin 0.7s linear infinite; margin: 1.5rem auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .placeholder-text {
+      text-align: center; padding: 2rem 1rem;
+      font-size: 0.82rem; color: var(--muted);
+    }
+    .placeholder-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div>
+    <h1>📊 Multi-SNR Comparison</h1>
+    <div class="subtitle">See how reconstruction quality degrades as channel noise increases</div>
+  </div>
+
+  <div class="controls">
+    <label>SNR levels to compare:</label>
+    <div id="snr-chips" style="display:flex;gap:0.4rem;flex-wrap:wrap;"></div>
+    <button class="btn-run" id="btn-run" onclick="runComparison()">▶ Run Comparison</button>
+  </div>
+
+  <div id="results-grid" class="compare-grid">
+    <div class="placeholder-text">
+      <div class="placeholder-icon">📡</div>
+      Select SNR levels above and click <strong>Run Comparison</strong>
+    </div>
+  </div>
+
+  <script>
+    // SNR options
+    const SNR_OPTIONS = [-5, 0, 5, 10, 15, 20, 25];
+    let selectedSnrs = [0, 5, 10, 15, 20];
+    let imageB64 = null;
+
+    // Build chips
+    const chipsEl = document.getElementById('snr-chips');
+    SNR_OPTIONS.forEach(snr => {
+      const chip = document.createElement('button');
+      chip.className = 'snr-chip' + (selectedSnrs.includes(snr) ? ' selected' : '');
+      chip.textContent = `${snr >= 0 ? '+' : ''}${snr} dB`;
+      chip.onclick = () => {
+        if (selectedSnrs.includes(snr)) {
+          selectedSnrs = selectedSnrs.filter(s => s !== snr);
+          chip.classList.remove('selected');
+        } else {
+          selectedSnrs.push(snr);
+          chip.classList.add('selected');
+        }
+      };
+      chipsEl.appendChild(chip);
+    });
+
+    // Get image from parent window
+    function getParentImage() {
+      try {
+        return window.parent?.State?.inputB64 || null;
+      } catch { return null; }
+    }
+
+    function psnrClass(psnr) {
+      if (psnr === null) return 'none';
+      if (psnr >= 25) return 'high';
+      if (psnr >= 15) return 'medium';
+      return 'low';
+    }
+
+    function psnrLabel(psnr) {
+      return psnr !== null ? psnr.toFixed(1) + ' dB' : '—';
+    }
+
+    async function encodeOnce(imgB64) {
+      const res = await fetch('/api/encode', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: imgB64 })
+      });
+      return await res.json();
+    }
+
+    async function channelAndDecode(vector, snrDb, origB64) {
+      // Channel
+      const chRes = await fetch('/api/channel', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vector, snr_db: snrDb, noiseless: false })
+      });
+      const chData = await chRes.json();
+
+      // Decode
+      const decRes = await fetch('/api/decode', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vector: chData.noisy_vector_flat, original_image: origB64 })
+      });
+      return await decRes.json();
+    }
+
+    async function runComparison() {
+      const imgB64 = getParentImage();
+      if (!imgB64) {
+        alert('Please load and encode an image in the main window first!');
+        return;
+      }
+      if (selectedSnrs.length === 0) {
+        alert('Select at least one SNR level.');
+        return;
+      }
+
+      const grid   = document.getElementById('results-grid');
+      const btn    = document.getElementById('btn-run');
+      btn.disabled = true;
+      btn.textContent = '⏳ Running…';
+
+      const sorted = [...selectedSnrs].sort((a, b) => a - b);
+
+      // Show loading cards
+      grid.innerHTML = sorted.map(snr => `
+        <div class="snr-card loading" id="card-${snr}">
+          <div class="snr-card-header">
+            <span class="snr-label-big">SNR: ${snr} dB</span>
+            <span class="psnr-badge none">—</span>
+          </div>
+          <div class="img-pair">
+            <div class="img-slot"><div class="spinner"></div></div>
+            <div class="img-slot" style="align-items:center;justify-content:center;color:var(--muted);font-size:0.7rem;">Decoding…</div>
+          </div>
+          <div class="snr-card-footer">Processing…</div>
+        </div>`).join('');
+
+      // Encode once
+      let encData;
+      try { encData = await encodeOnce(imgB64); }
+      catch(e) { grid.innerHTML = `<div class="placeholder-text">❌ Encode failed: ${e.message}</div>`; btn.disabled = false; btn.textContent = '▶ Run Comparison'; return; }
+
+      // Decode at each SNR in parallel
+      const results = await Promise.allSettled(
+        sorted.map(snr => channelAndDecode(encData.vector_flat, snr, imgB64))
+      );
+
+      results.forEach((res, i) => {
+        const snr  = sorted[i];
+        const card = document.getElementById(`card-${snr}`);
+        if (!card) return;
+
+        if (res.status === 'rejected' || res.value?.error) {
+          card.innerHTML = `<div class="snr-card-header"><span class="snr-label-big">SNR: ${snr} dB</span></div><div class="placeholder-text">❌ Error</div>`;
+          return;
+        }
+
+        const data  = res.value;
+        const psnr  = data.metrics?.psnr ?? null;
+        const mse   = data.metrics?.mse  ?? null;
+        const cls   = psnrClass(psnr);
+
+        card.className = 'snr-card';
+        card.innerHTML = `
+          <div class="snr-card-header">
+            <span class="snr-label-big">SNR: ${snr >= 0 ? '+' : ''}${snr} dB</span>
+            <span class="psnr-badge ${cls}">${psnrLabel(psnr)}</span>
+          </div>
+          <div class="img-pair">
+            <div class="img-slot">
+              <img src="${imgB64}" alt="Original">
+              <div class="slot-label">Original</div>
+            </div>
+            <div class="img-slot">
+              <img src="${data.reconstructed_image}" alt="Reconstructed">
+              <div class="slot-label">Decoded</div>
+            </div>
+          </div>
+          <div class="snr-card-footer">
+            PSNR: ${psnrLabel(psnr)} &nbsp;·&nbsp; MSE: ${mse !== null ? mse.toFixed(5) : '—'}
+          </div>`;
+      });
+
+      btn.disabled = false;
+      btn.textContent = '▶ Run Comparison';
+    }
+  </script>
+</body>
+</html>

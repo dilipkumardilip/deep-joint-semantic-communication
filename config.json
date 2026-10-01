@@ -3,16 +3,21 @@
     "in_channels": 3,
     "channel_c": 16,
     "power": 1.0,
-    "image_size": [32, 32]
+    "image_size": [128, 128]
   },
   "dataset": {
+    "name": "div2k",
     "data_dir": "./data",
+    "div2k_hr_dir": "./data/DIV2K/DIV2K_train_HR",
+    "patch_size": 128,
+    "train_ratio": 0.85,
     "train_split": 0.7,
     "val_split": 0.3,
-    "batch_size": 64,
-    "test_batch_size": 64,
-    "num_workers": 0,
-    "random_seed": 42
+    "batch_size": 16,
+    "test_batch_size": 8,
+    "num_workers": 4,
+    "random_seed": 42,
+    "augment": true
   },
   "channel": {
     "default_snr_db": 10.0,
@@ -20,13 +25,13 @@
   },
   "training": {
     "epochs": 50,
-    "learning_rate": 0.001,
-    "weight_decay": 0.0,
+    "learning_rate": 0.0001,
+    "weight_decay": 1e-5,
     "scheduler": "cosine"
   },
   "paths": {
     "checkpoint_dir": "./checkpoints",
-    "best_model_path": "./checkpoints/best_jscc_model.pth",
+    "best_model_path": "./checkpoints/best_jscc_model_div2k.pth",
     "experiments_dir": "./experiments"
   },
   "web": {

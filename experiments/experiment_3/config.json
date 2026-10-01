@@ -1,0 +1,60 @@
+{
+  "experiment_name": "experiment_3",
+  "timestamp": "2026-10-02 02:15:30",
+  "device": "mps",
+  "model": {
+    "in_channels": 3,
+    "channel_c": 16,
+    "power": 1.0,
+    "image_size": [
+      128,
+      128
+    ],
+    "transmitted_symbols_k": 16384
+  },
+  "dataset": {
+    "name": "DIV2K",
+    "data_dir": "./data/DIV2K/DIV2K_train_HR",
+    "patch_size": 128,
+    "train_split": 0.85,
+    "batch_size": 16,
+    "num_workers": 4,
+    "augment": true,
+    "random_seed": 42
+  },
+  "channel": {
+    "type": "AWGN",
+    "train_snr_db": 10.0,
+    "test_snrs": [
+      -5.0,
+      0.0,
+      5.0,
+      10.0,
+      15.0,
+      20.0,
+      25.0
+    ]
+  },
+  "training": {
+    "epochs": 50,
+    "initial_lr": 0.0001,
+    "eta_min": 1e-06,
+    "weight_decay": 1e-05,
+    "scheduler": "CosineAnnealingLR",
+    "loss": "MSELoss",
+    "optimizer": "Adam"
+  },
+  "results": {
+    "best_val_psnr_db": 19.49,
+    "test_mse": 0.01126,
+    "test_psnr_db": 19.48,
+    "total_duration": "6m 51.0s",
+    "total_seconds": 410.97,
+    "avg_epoch_seconds": 8.22
+  },
+  "paths": {
+    "checkpoint_dir": "./checkpoints",
+    "best_model": "./checkpoints/experiment_3_best_model.pth",
+    "experiment_dir": "./experiments/experiment_3"
+  }
+}

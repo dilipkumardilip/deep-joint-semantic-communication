@@ -21,16 +21,21 @@ def load_config_json(file_path: str = CONFIG_FILE_PATH) -> Dict[str, Any]:
             "in_channels": 3,
             "channel_c": 16,
             "power": 1.0,
-            "image_size": [32, 32],
+            "image_size": [128, 128],
         },
         "dataset": {
+            "name": "div2k",
             "data_dir": "./data",
+            "div2k_hr_dir": "./data/DIV2K/DIV2K_train_HR",
+            "patch_size": 128,
+            "train_ratio": 0.85,
             "train_split": 0.7,
             "val_split": 0.3,
-            "batch_size": 64,
-            "test_batch_size": 64,
-            "num_workers": 0,
+            "batch_size": 16,
+            "test_batch_size": 8,
+            "num_workers": 4,
             "random_seed": 42,
+            "augment": True,
         },
         "channel": {
             "default_snr_db": 10.0,
@@ -81,13 +86,18 @@ IMG_SIZE: Tuple[int, int] = tuple(MODEL_CONFIG.get("image_size", [32, 32]))  # t
 
 # Dataset Parameters
 DATA_CONFIG: Dict[str, Any] = CONFIG.get("dataset", {})
+DATASET_NAME: str = str(DATA_CONFIG.get("name", "div2k"))
 DATA_DIR: str = str(DATA_CONFIG.get("data_dir", "./data"))
+DIV2K_HR_DIR: str = str(DATA_CONFIG.get("div2k_hr_dir", "./data/DIV2K/DIV2K_train_HR"))
+PATCH_SIZE: int = int(DATA_CONFIG.get("patch_size", 128))
+TRAIN_RATIO: float = float(DATA_CONFIG.get("train_ratio", 0.85))
 TRAIN_SPLIT: float = float(DATA_CONFIG.get("train_split", 0.7))
 VAL_SPLIT: float = float(DATA_CONFIG.get("val_split", 0.3))
-BATCH_SIZE: int = int(DATA_CONFIG.get("batch_size", 64))
-TEST_BATCH_SIZE: int = int(DATA_CONFIG.get("test_batch_size", 64))
-NUM_WORKERS: int = int(DATA_CONFIG.get("num_workers", 0))
+BATCH_SIZE: int = int(DATA_CONFIG.get("batch_size", 16))
+TEST_BATCH_SIZE: int = int(DATA_CONFIG.get("test_batch_size", 8))
+NUM_WORKERS: int = int(DATA_CONFIG.get("num_workers", 4))
 RANDOM_SEED: int = int(DATA_CONFIG.get("random_seed", 42))
+AUGMENT: bool = bool(DATA_CONFIG.get("augment", True))
 
 # Channel Parameters
 CHANNEL_CONFIG: Dict[str, Any] = CONFIG.get("channel", {})
