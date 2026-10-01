@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deep JSCC — Image Semantic Communication</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-page: #f8fafc;
+      --bg-card: #ffffff;
+      --border-card: #e2e8f0;
+      --border-card-hover: #cbd5e1;
+      --text-heading: #0f172a;
+      --text-body: #334155;
+      --text-muted: #64748b;
+      --text-sub: #94a3b8;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent-green: #16a34a;
+      --accent-amber: #d97706;
+      --code-bg: #f8fafc;
+      --code-border: #cbd5e1;
+      --radius-lg: 12px;
+      --radius-md: 8px;
+      --radius-sm: 6px;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-page);
+      color: var(--text-body);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    /* Top Navigation */
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border-card);
+      padding: 1.25rem 2.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-heading);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .brand-badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 9999px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid #bfdbfe;
+    }
+
+    .header-info {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .info-tag {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #f1f5f9;
+      padding: 0.25rem 0.65rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-card);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-green);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1360px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.75rem;
+    }
+
+    /* Process Ribbon */
+    .flow-ribbon {
+      background: #ffffff;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .flow-step {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .flow-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      background: #f1f5f9;
+      color: var(--text-heading);
+      border: 1px solid var(--border-card);
+    }
+
+    .flow-step.active .flow-num {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+
+    .flow-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-heading);
+    }
+
+    .flow-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .flow-arrow {
+      color: var(--text-sub);
+      font-size: 1.25rem;
+    }
+
+    /* Workstation Grid */
+    .grid-container {
+      display: grid;
+      grid-template-columns: 1fr 270px 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 1080px) {
+      .grid-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .card-header {
+      border-bottom: 1px solid var(--border-card);
+      padding-bottom: 0.85rem;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-heading);
+    }
+
+    .card-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    /* Dropzone */
+    .dropzone {
+      border: 2px dashed var(--border-card-hover);
+      border-radius: var(--radius-md);
+      padding: 1.75rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      background: #fafafa;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .dropzone:hover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .dropzone-icon {
+      font-size: 1.75rem;
+    }
+
+    .dropzone-text {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-heading);
+    }
+
+    .dropzone-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 0.65rem 1.1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      font-family: inherit;
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: #ffffff;
+      color: var(--text-body);
+      border-color: var(--border-card);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #f1f5f9;
+      border-color: var(--border-card-hover);
+    }
+
+    .btn-block {
+      width: 100%;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /* Preview Boxes */
+    .preview-box {
+      display: flex;
+      gap: 1rem;
+      background: #f8fafc;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 0.85rem;
+      align-items: center;
+    }
+
+    .img-box {
+      width: 80px;
+      height: 80px;
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+      border: 1px solid var(--border-card);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .img-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+
+    .preview-info {
+      font-size: 0.8rem;
+    }
+
+    .preview-title {
+      font-weight: 600;
+      color: var(--text-heading);
+      margin-bottom: 0.2rem;
+    }
+
+    /* Stats Grid */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.65rem;
+    }
+
+    .stat-card {
+      background: #f8fafc;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 0.65rem 0.85rem;
+    }
+
+    .stat-name {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .stat-val {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-heading);
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 0.15rem;
+    }
+
+    .stat-val.green {
+      color: var(--accent-green);
+    }
+
+    /* Feature Maps */
+    .fmap-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .fmap-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 5px;
+    }
+
+    .fmap-item {
+      aspect-ratio: 1;
+      border-radius: 4px;
+      border: 1px solid var(--border-card);
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .fmap-item img {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+    }
+
+    /* Code Box */
+    .code-wrapper {
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: #ffffff;
+    }
+
+    .code-top {
+      background: #f1f5f9;
+      border-bottom: 1px solid var(--border-card);
+      padding: 0.4rem 0.75rem;
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .code-area {
+      width: 100%;
+      height: 110px;
+      background: var(--code-bg);
+      border: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      padding: 0.65rem 0.75rem;
+      color: var(--text-body);
+      resize: vertical;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-break: break-all;
+      outline: none;
+    }
+
+    /* Middle Channel Card */
+    .channel-box {
+      background: #ffffff;
+      border: 1px solid #fde68a;
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 1.15rem;
+      align-self: center;
+    }
+
+    .channel-head {
+      text-align: center;
+    }
+
+    .channel-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0.2rem 0.5rem;
+      border-radius: 9999px;
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+
+    .channel-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-heading);
+      margin-top: 0.35rem;
+    }
+
+    .slider-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .slider-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .snr-display {
+      color: var(--primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+    }
+
+    input[type=range] {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: #e2e8f0;
+      outline: none;
+    }
+
+    .presets-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.35rem;
+    }
+
+    .preset-btn {
+      padding: 0.25rem 0;
+      font-size: 0.7rem;
+      font-weight: 600;
+      border-radius: 4px;
+      background: #f8fafc;
+      border: 1px solid var(--border-card);
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .preset-btn:hover {
+      background: #f1f5f9;
+      color: var(--text-heading);
+    }
+
+    /* Comparison Area */
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+    }
+
+    .compare-pane {
+      background: #f8fafc;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-md);
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .compare-pane img {
+      width: 100%;
+      max-width: 110px;
+      aspect-ratio: 1;
+      object-fit: contain;
+      image-rendering: pixelated;
+      background: #ffffff;
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-sm);
+    }
+
+    .compare-tag {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: #1e293b;
+      color: #ffffff;
+      padding: 0.65rem 1.15rem;
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      box-shadow: var(--shadow-md);
+      display: none;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="brand-title">
+      Deep JSCC
+      <span class="brand-badge">Image Semantics</span>
+    </div>
+    <div class="header-info">
+      <div class="info-tag">
+        <span class="status-dot"></span>
+        <span>Model: Bourtsoulatze et al. (c=16)</span>
+      </div>
+      <div class="info-tag">
+        <span>Compression: k/n = 1/3 (1024 symbols)</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Flow Ribbon -->
+    <div class="flow-ribbon">
+      <div class="flow-step active">
+        <div class="flow-num">1</div>
+        <div>
+          <div class="flow-title">Transmitter Encoder</div>
+          <div class="flow-desc">Image ➔ 1,024 Channel Symbols</div>
+        </div>
+      </div>
+      <div class="flow-arrow">➔</div>
+      <div class="flow-step active">
+        <div class="flow-num">2</div>
+        <div>
+          <div class="flow-title">Wireless Channel</div>
+          <div class="flow-desc">Simulated AWGN Noise (SNR dB)</div>
+        </div>
+      </div>
+      <div class="flow-arrow">➔</div>
+      <div class="flow-step active">
+        <div class="flow-num">3</div>
+        <div>
+          <div class="flow-title">Receiver Decoder</div>
+          <div class="flow-desc">Channel Symbols ➔ Reconstructed Image</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3-Column Workstation -->
+    <div class="grid-container">
+
+      <!-- ================= 1. ENCODER (TRANSMITTER) ================= -->
+      <section class="card" id="encoder-section">
+        <div class="card-header">
+          <div class="card-title">1. Transmitter Encoder</div>
+          <div class="card-subtitle">Upload image to produce semantic latent vector</div>
+        </div>
+
+        <!-- Upload Dropzone -->
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+          <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+          <div class="dropzone-icon">📁</div>
+          <div class="dropzone-text">Click to choose image or drag & drop</div>
+          <div class="dropzone-hint">PNG, JPEG, WebP (auto-resized to 32×32)</div>
+        </div>
+
+        <button class="btn btn-secondary btn-block" id="btn-load-sample" onclick="loadSampleImage()">
+          🎲 Load Sample CIFAR Image
+        </button>
+
+        <!-- Preview of uploaded image -->
+        <div class="preview-box" id="input-preview-box" style="display: none;">
+          <div class="img-box">
+            <img id="input-img-preview" src="" alt="Input preview">
+          </div>
+          <div class="preview-info">
+            <div class="preview-title" id="input-img-title">Input Image</div>
+            <div style="color: var(--text-muted);">Tensor: (1, 3, 32, 32)</div>
+            <div style="color: var(--text-muted);">RGB values in [0, 1]</div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-block" id="btn-encode" onclick="encodeImage()" disabled>
+          ⚡ Encode to Channel Vector
+        </button>
+
+        <!-- Vector Results Section (Shown after encoding) -->
+        <div id="vector-results" style="display: none; flex-direction: column; gap: 1rem;">
+          
+          <!-- Key Statistics -->
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-name">Tensor Shape</div>
+              <div class="stat-val" id="stat-shape">[1, 16, 8, 8]</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-name">Channel Symbols (k)</div>
+              <div class="stat-val" id="stat-k">1,024</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-name">Average Power P</div>
+              <div class="stat-val green" id="stat-power">1.0000</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-name">Min / Max Range</div>
+              <div class="stat-val" id="stat-range">--</div>
+            </div>
+          </div>
+
+          <!-- Feature Maps -->
+          <div class="fmap-section">
+            <div class="section-label">16 Feature Channels (8×8 each)</div>
+            <div class="fmap-grid" id="fmap-grid"></div>
+          </div>
+
+          <!-- Raw Vector Display -->
+          <div class="code-wrapper">
+            <div class="code-top">
+              <span>semantic_vector.json</span>
+              <span id="vector-len-label">1024 floats</span>
+            </div>
+            <textarea class="code-area" id="vector-output-box" readonly></textarea>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="btn-row">
+            <button class="btn btn-secondary btn-block" onclick="copyVectorToClipboard()">📋 Copy JSON</button>
+            <button class="btn btn-secondary btn-block" onclick="downloadVectorJson()">💾 Save .json</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 2. WIRELESS CHANNEL ================= -->
+      <section class="channel-box">
+        <div class="channel-head">
+          <span class="channel-badge">Wireless Link</span>
+          <div class="channel-title">AWGN Channel</div>
+        </div>
+
+        <div class="slider-container">
+          <div class="slider-label-row">
+            <span style="color: var(--text-muted);">Channel SNR:</span>
+            <span class="snr-display" id="snr-val-display">10.0 dB</span>
+          </div>
+          <input type="range" id="snr-slider" min="-5" max="25" step="1" value="10" oninput="updateSnrLabel(this.value)">
+        </div>
+
+        <div class="presets-row">
+          <button class="preset-btn" onclick="setSnr(0)">0 dB (Noisy)</button>
+          <button class="preset-btn" onclick="setSnr(10)">10 dB (Nominal)</button>
+          <button class="preset-btn" onclick="setSnr(20)">20 dB (Clear)</button>
+        </div>
+
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-align: center;">
+          Adds Gaussian noise: y = z + n
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+          <button class="btn btn-primary btn-block" id="btn-pass-to-decoder" onclick="transferVectorToDecoder(false)" disabled>
+            Transmit over Channel ➔
+          </button>
+          <button class="btn btn-secondary btn-block" id="btn-pass-clean" onclick="transferVectorToDecoder(true)" disabled style="font-size: 0.75rem;">
+            Transmit Noiseless (Direct)
+          </button>
+        </div>
+      </section>
+
+      <!-- ================= 3. DECODER (RECEIVER) ================= -->
+      <section class="card" id="decoder-section">
+        <div class="card-header">
+          <div class="card-title">3. Receiver Decoder</div>
+          <div class="card-subtitle">Receive vector to reconstruct the image</div>
+        </div>
+
+        <!-- Vector Input Box -->
+        <div class="code-wrapper">
+          <div class="code-top">
+            <span>received_vector.json</span>
+            <label for="file-vector-upload" style="cursor: pointer; color: var(--primary); font-weight: 600;">📂 Load File</label>
+            <input type="file" id="file-vector-upload" accept=".json" style="display: none;" onchange="handleVectorFileUpload(event)">
+          </div>
+          <textarea class="code-area" id="decoder-input-box" placeholder="Paste or transfer JSON vector here (e.g., [0.12, -0.45, ...])" style="height: 130px;"></textarea>
+        </div>
+
+        <button class="btn btn-primary btn-block" id="btn-decode" onclick="decodeVector()">
+          ✨ Decode Vector to Image
+        </button>
+
+        <!-- Reconstruction Result -->
+        <div id="decoder-results" style="display: none; flex-direction: column; gap: 1rem;">
+          
+          <!-- Quality Metrics -->
+          <div class="stats-row">
+            <div class="stat-card">
+              <div class="stat-name">Reconstruction PSNR</div>
+              <div class="stat-val green" id="stat-psnr">-- dB</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-name">Reconstruction MSE</div>
+              <div class="stat-val" id="stat-mse">--</div>
+            </div>
+          </div>
+
+          <!-- Comparison Display -->
+          <div class="compare-grid">
+            <div class="compare-pane">
+              <img id="decoded-original-img" src="" alt="Original reference">
+              <div class="compare-tag">Original Input</div>
+            </div>
+            <div class="compare-pane">
+              <img id="decoded-recon-img" src="" alt="Reconstructed output">
+              <div class="compare-tag">Decoded Output</div>
+            </div>
+          </div>
+
+          <a class="btn btn-secondary btn-block" id="btn-download-img" download="reconstructed_image.png">
+            💾 Download Reconstructed Image
+          </a>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <div id="toast">Message</div>
+
+  <script>
+    let currentInputB64 = null;
+    let currentVectorData = null;
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      toast.innerText = msg;
+      toast.style.display = "block";
+      setTimeout(() => { toast.style.display = "none"; }, 2500);
+    }
+
+    // Drag & Drop
+    const dropzone = document.getElementById("dropzone");
+    ['dragenter', 'dragover'].forEach(name => {
+      dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.style.borderColor = "var(--primary)"; }, false);
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.style.borderColor = ""; }, false);
+    });
+    dropzone.addEventListener("drop", (e) => {
+      const files = e.dataTransfer.files;
+      if (files && files[0]) processFile(files[0]);
+    });
+
+    function handleFileSelect(e) {
+      if (e.target.files && e.target.files[0]) processFile(e.target.files[0]);
+    }
+
+    function processFile(file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImageSource(event.target.result, file.name);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function setImageSource(dataUrl, title = "Uploaded Image") {
+      currentInputB64 = dataUrl;
+      const previewBox = document.getElementById("input-preview-box");
+      const previewImg = document.getElementById("input-img-preview");
+      const titleEl = document.getElementById("input-img-title");
+
+      previewImg.src = dataUrl;
+      titleEl.innerText = title;
+      previewBox.style.display = "flex";
+      document.getElementById("btn-encode").removeAttribute("disabled");
+
+      document.getElementById("decoded-original-img").src = dataUrl;
+      showToast("Image loaded! Ready to encode.");
+    }
+
+    async function loadSampleImage() {
+      try {
+        const res = await fetch("/api/sample");
+        const data = await res.json();
+        if (data.image) {
+          setImageSource(data.image, "CIFAR-10 Sample");
+        }
+      } catch (err) {
+        showToast("Error loading sample: " + err);
+      }
+    }
+
+    async function encodeImage() {
+      if (!currentInputB64) return;
+      const btn = document.getElementById("btn-encode");
+      btn.innerText = "Encoding...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch("/api/encode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: currentInputB64 })
+        });
+        const data = await res.json();
+
+        if (data.error) {
+          showToast("Encoding failed: " + data.error);
+          return;
+        }
+
+        currentVectorData = data.vector_flat;
+
+        document.getElementById("stat-shape").innerText = `[${data.shape.join(", ")}]`;
+        document.getElementById("stat-k").innerText = data.num_symbols.toLocaleString();
+        document.getElementById("stat-power").innerText = data.avg_power.toFixed(4);
+        document.getElementById("stat-range").innerText = `[${data.min_val}, ${data.max_val}]`;
+
+        const fmapGrid = document.getElementById("fmap-grid");
+        fmapGrid.innerHTML = "";
+        data.feature_maps.forEach((b64, idx) => {
+          const cell = document.createElement("div");
+          cell.className = "fmap-item";
+          cell.title = `Channel ${idx + 1}/16`;
+          const img = document.createElement("img");
+          img.src = b64;
+          cell.appendChild(img);
+          fmapGrid.appendChild(cell);
+        });
+
+        document.getElementById("vector-output-box").value = JSON.stringify(data.vector_flat);
+        document.getElementById("vector-len-label").innerText = `${data.vector_flat.length} floats`;
+
+        document.getElementById("vector-results").style.display = "flex";
+        document.getElementById("btn-pass-to-decoder").removeAttribute("disabled");
+        document.getElementById("btn-pass-clean").removeAttribute("disabled");
+
+        showToast("Encoding complete! Vector generated.");
+      } catch (err) {
+        showToast("Encode error: " + err);
+      } finally {
+        btn.innerText = "⚡ Encode to Channel Vector";
+        btn.disabled = false;
+      }
+    }
+
+    function updateSnrLabel(val) {
+      document.getElementById("snr-val-display").innerText = parseFloat(val).toFixed(1) + " dB";
+    }
+
+    function setSnr(val) {
+      document.getElementById("snr-slider").value = val;
+      updateSnrLabel(val);
+    }
+
+    async function transferVectorToDecoder(isNoiseless = false) {
+      if (!currentVectorData) {
+        showToast("Please encode an image first!");
+        return;
+      }
+
+      const snrVal = parseFloat(document.getElementById("snr-slider").value);
+
+      if (isNoiseless) {
+        document.getElementById("decoder-input-box").value = JSON.stringify(currentVectorData);
+        showToast("Vector passed directly (Noiseless). Decoding...");
+        decodeVector();
+      } else {
+        try {
+          showToast(`Simulating AWGN channel at SNR = ${snrVal} dB...`);
+          const res = await fetch("/api/channel", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              vector: currentVectorData,
+              snr_db: snrVal,
+              noiseless: false
+            })
+          });
+          const data = await res.json();
+          document.getElementById("decoder-input-box").value = JSON.stringify(data.noisy_vector_flat);
+          showToast("Noisy vector received! Decoding image...");
+          decodeVector();
+        } catch (err) {
+          showToast("Channel error: " + err);
+        }
+      }
+    }
+
+    async function decodeVector() {
+      const box = document.getElementById("decoder-input-box");
+      const rawText = box.value.trim();
+      if (!rawText) {
+        showToast("Please provide a vector first!");
+        return;
+      }
+
+      let parsedVector;
+      try {
+        parsedVector = JSON.parse(rawText);
+      } catch (e) {
+        showToast("Invalid JSON vector format!");
+        return;
+      }
+
+      const btn = document.getElementById("btn-decode");
+      btn.innerText = "Decoding...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch("/api/decode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vector: parsedVector,
+            original_image: currentInputB64
+          })
+        });
+        const data = await res.json();
+
+        if (data.error) {
+          showToast("Decode error: " + data.error);
+          return;
+        }
+
+        const reconImg = document.getElementById("decoded-recon-img");
+        reconImg.src = data.reconstructed_image;
+        document.getElementById("btn-download-img").href = data.reconstructed_image;
+
+        if (data.metrics && data.metrics.psnr !== undefined) {
+          document.getElementById("stat-psnr").innerText = data.metrics.psnr.toFixed(2) + " dB";
+          document.getElementById("stat-mse").innerText = data.metrics.mse.toFixed(5);
+        } else {
+          document.getElementById("stat-psnr").innerText = "N/A (No ref)";
+          document.getElementById("stat-mse").innerText = "N/A";
+        }
+
+        document.getElementById("decoder-results").style.display = "flex";
+        showToast("Image reconstructed successfully!");
+      } catch (err) {
+        showToast("Decode error: " + err);
+      } finally {
+        btn.innerText = "✨ Decode Vector to Image";
+        btn.disabled = false;
+      }
+    }
+
+    function copyVectorToClipboard() {
+      const box = document.getElementById("vector-output-box");
+      navigator.clipboard.writeText(box.value).then(() => {
+        showToast("Vector copied to clipboard!");
+      });
+    }
+
+    function downloadVectorJson() {
+      const box = document.getElementById("vector-output-box");
+      const blob = new Blob([box.value], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "semantic_channel_vector.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function handleVectorFileUpload(e) {
+      if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          document.getElementById("decoder-input-box").value = event.target.result;
+          showToast("Loaded vector from file!");
+        };
+        reader.readAsText(file);
+      }
+    }
+  </script>
+</body>
+</html>
