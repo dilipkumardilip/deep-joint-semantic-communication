@@ -30,7 +30,7 @@ def calculate_psnr(mse: float, max_val: float = 1.0) -> float:
     Formula: PSNR = 10 * log10(max_val^2 / MSE)
     """
     if mse <= 1e-10:
-        return 100.0
+        return 100.0  # Finite numerical cap for near-perfect reconstruction (MSE -> 0 => PSNR -> inf)
     return 10.0 * math.log10((max_val ** 2) / mse)
 
 
