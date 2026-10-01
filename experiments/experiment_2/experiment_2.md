@@ -3,7 +3,7 @@
 ## 1. Executive Summary & Purpose
 This experiment trains the Deep Joint Source-Channel Communication (Deep JSCC) image transmission model for **50 epochs** utilizing a **Cosine Annealing Learning Rate Scheduler** decaying from `0.001` down to `1e-05`.
 
-- **Timestamp:** 2026-10-02 01:27:58
+- **Timestamp:** 2026-10-02 01:25:32
 - **Dataset:** CIFAR-10 (70% Train / 30% Val)
 - **Total Training Duration:** **6m 25.2s** (385.2 seconds total)
 - **Average Epoch Duration:** **7.70 seconds/epoch**
