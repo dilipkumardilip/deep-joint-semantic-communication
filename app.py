@@ -117,7 +117,10 @@ class SemanticCommHandler(SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            with open("index.html", "rb") as f:
+            html_path = os.path.join(os.path.dirname(__file__), "UserInterface", "index.html")
+            if not os.path.exists(html_path):
+                html_path = "index.html"
+            with open(html_path, "rb") as f:
                 self.wfile.write(f.read())
             return
 

@@ -1,363 +1,46 @@
 """
-Visualization and Plotting Suite for Deep Joint Source-Channel Communication (Deep JSCC).
+Unified Plotting CLI Runner for Deep Joint Source-Channel Communication (Deep JSCC).
 
-Includes:
-1. PSNR vs Channel SNR Curve (Graceful degradation / cliff-effect avoidance)
-2. Original vs Reconstructed Image Comparison Grid
-3. Pixel-wise Error Heatmaps (|x - x_hat|)
-4. Transmitted Latent Channel Symbol Constellation / Distribution
-5. Training & Validation Convergence Curves
+Dispatches plotting routines from the modular `plots/` package:
+- Rate Distortion: `plot_psnr_vs_snr`
+- Reconstructions: `plot_reconstruction_grid`
+- Error Heatmaps:  `plot_error_heatmaps`
+- Constellations:  `plot_constellation`
+- Convergence:     `plot_training_curves`
 
-Can be imported as a library or executed directly:
-    python plots.py --all
+Usage:
+    python plots.py --all --exp-name experiment_2
 """
 
 import argparse
+import json
 import math
 import os
-from typing import Any, Dict, List, Optional, Tuple
-
-import matplotlib.pyplot as plt
-import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 
 import config
-from model import DeepJSCC
 from dataset import get_cifar10_loaders
+from model import DeepJSCC
+from plotting import (
+    plot_constellation,
+    plot_error_heatmaps,
+    plot_psnr_vs_snr,
+    plot_reconstruction_comparison,
+    plot_reconstruction_grid,
+    plot_training_curves,
+    set_plot_style,
+)
 
-
-def set_plot_style():
-    """Configures clean, publication-ready Matplotlib aesthetics."""
-    plt.style.use("seaborn-v0_8-whitegrid" if "seaborn-v0_8-whitegrid" in plt.style.available else "default")
-    plt.rcParams.update({
-        "font.size": 11,
-        "axes.labelsize": 12,
-        "axes.titlesize": 13,
-        "xtick.labelsize": 10,
-        "ytick.labelsize": 10,
-        "legend.fontsize": 11,
-        "figure.titlesize": 14,
-    })
-
-
-def plot_psnr_vs_snr(
-    snr_list: List[float],
-    psnr_list: List[float],
-    title: str = "Deep JSCC: PSNR vs Channel SNR",
-    save_path: str = os.path.join(config.OUTPUTS_DIR, "psnr_vs_snr.png"),
-    benchmark_data: Optional[Dict[str, List[float]]] = None,
-):
-    """
-    Plots the classic Deep JSCC Rate-Distortion curve across different Channel SNRs.
-    Demonstrates graceful degradation without the cliff effect of classical separation schemes.
-    """
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    set_plot_style()
-
-    plt.figure(figsize=(8, 5.5))
-    plt.plot(
-        snr_list,
-        psnr_list,
-        marker="o",
-        color="#1f77b4",
-        linewidth=2.5,
-        markersize=7,
-        label="Deep JSCC (Proposed)",
-    )
-
-    if benchmark_data:
-        colors = ["#ff7f0e", "#2ca02c", "#d62728"]
-        for idx, (bench_name, bench_psnr) in enumerate(benchmark_data.items()):
-            color = colors[idx % len(colors)]
-            plt.plot(
-                snr_list[:len(bench_psnr)],
-                bench_psnr,
-                marker="s",
-                linestyle="--",
-                linewidth=1.8,
-                color=color,
-                label=bench_name,
-            )
-
-    plt.xlabel("Channel SNR (dB)")
-    plt.ylabel("Reconstruction PSNR (dB)")
-    plt.title(title, fontweight="bold", pad=12)
-    plt.grid(True, linestyle="--", alpha=0.6)
-    plt.legend(frameon=True, facecolor="white", framealpha=0.9)
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300)
-    plt.close()
-    print(f"-> Saved PSNR vs SNR plot: {save_path}")
-
-
-def plot_reconstruction_grid(
-    model: nn.Module,
-    loader: DataLoader,
-    device: torch.device,
-    snr_list: List[float],
-    num_samples: int = 5,
-    save_path: str = os.path.join(config.OUTPUTS_DIR, "reconstruction_grid.png"),
-):
-    """
-    Plots a grid comparing original images with their reconstructions across various SNRs.
-    """
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    model.eval()
-
-    images, _ = next(iter(loader))
-    images = images[:num_samples].to(device)
-
-    reconstructions = {}
-    with torch.no_grad():
-        for snr in snr_list:
-            reconstructions[snr] = model(images, snr_db=snr).cpu().clamp(0.0, 1.0)
-
-    images = images.cpu()
-    rows = num_samples
-    cols = 1 + len(snr_list)
-
-    fig, axes = plt.subplots(rows, cols, figsize=(cols * 2.2, rows * 2.2))
-    if rows == 1:
-        axes = np.expand_dims(axes, 0)
-
-    for i in range(rows):
-        orig_img = images[i].permute(1, 2, 0).numpy()
-        axes[i, 0].imshow(orig_img)
-        axes[i, 0].axis("off")
-        if i == 0:
-            axes[i, 0].set_title("Original", fontweight="bold", fontsize=12)
-
-        for j, snr in enumerate(snr_list):
-            recon_img = reconstructions[snr][i].permute(1, 2, 0).numpy()
-            axes[i, j + 1].imshow(recon_img)
-            axes[i, j + 1].axis("off")
-            if i == 0:
-                axes[i, j + 1].set_title(f"SNR {snr} dB", fontweight="bold", fontsize=12)
-
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300)
-    plt.close()
-    print(f"-> Saved reconstruction grid: {save_path}")
-
-
-def plot_error_heatmaps(
-    model: nn.Module,
-    loader: DataLoader,
-    device: torch.device,
-    snr: float = 10.0,
-    num_samples: int = 4,
-    save_path: str = os.path.join(config.OUTPUTS_DIR, "error_heatmaps.png"),
-):
-    """
-    Visualizes original images, reconstructed images, and their absolute pixel error heatmaps.
-    """
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    model.eval()
-
-    images, _ = next(iter(loader))
-    images = images[:num_samples].to(device)
-
-    with torch.no_grad():
-        reconstructed = model(images, snr_db=snr).clamp(0.0, 1.0)
-
-    diff = torch.abs(images - reconstructed).mean(dim=1).cpu().numpy()  # Average across RGB
-    images = images.cpu().numpy()
-    reconstructed = reconstructed.cpu().numpy()
-
-    fig, axes = plt.subplots(num_samples, 3, figsize=(8.5, num_samples * 2.5))
-    if num_samples == 1:
-        axes = np.expand_dims(axes, 0)
-
-    for i in range(num_samples):
-        # 1. Original
-        axes[i, 0].imshow(np.transpose(images[i], (1, 2, 0)))
-        axes[i, 0].axis("off")
-        if i == 0:
-            axes[i, 0].set_title("Original", fontweight="bold")
-
-        # 2. Reconstructed
-        axes[i, 1].imshow(np.transpose(reconstructed[i], (1, 2, 0)))
-        axes[i, 1].axis("off")
-        if i == 0:
-            axes[i, 1].set_title(f"Reconstructed ({snr} dB)", fontweight="bold")
-
-        # 3. Error Heatmap
-        heatmap = axes[i, 2].imshow(diff[i], cmap="inferno", vmin=0.0, vmax=0.3)
-        axes[i, 2].axis("off")
-        if i == 0:
-            axes[i, 2].set_title("Error Heatmap |x - x̂|", fontweight="bold")
-        fig.colorbar(heatmap, ax=axes[i, 2], fraction=0.046, pad=0.04)
-
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300)
-    plt.close()
-    print(f"-> Saved error heatmaps: {save_path}")
-
-
-def plot_constellation(
-    model: DeepJSCC,
-    loader: DataLoader,
-    device: torch.device,
-    num_batches: int = 5,
-    save_path: str = os.path.join(config.OUTPUTS_DIR, "symbol_constellation.png"),
-):
-    """
-    Plots the 2D distribution/constellation of transmitted channel symbols z in latent space,
-    showing how the power constraint shapes the transmitted semantic symbols.
-    """
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    model.eval()
-
-    symbols = []
-    with torch.no_grad():
-        for batch_idx, (images, _) in enumerate(loader):
-            if batch_idx >= num_batches:
-                break
-            images = images.to(device)
-            z = model.encoder(images)
-            symbols.append(z.view(-1).cpu().numpy())
-
-    all_symbols = np.concatenate(symbols)
-    # Sample pairs as in-phase (I) and quadrature (Q) symbols
-    if len(all_symbols) % 2 != 0:
-        all_symbols = all_symbols[:-1]
-    i_symbols = all_symbols[0::2]
-    q_symbols = all_symbols[1::2]
-
-    # Subsample 15,000 points for a clean scatter plot
-    if len(i_symbols) > 15000:
-        indices = np.random.choice(len(i_symbols), 15000, replace=False)
-        i_symbols = i_symbols[indices]
-        q_symbols = q_symbols[indices]
-
-    set_plot_style()
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5.2))
-
-    # 1. 2D Scatter constellation
-    ax1.scatter(i_symbols, q_symbols, alpha=0.25, s=8, color="#2b5c8f", edgecolors="none")
-    # Draw unit power circle
-    circle = plt.Circle((0, 0), 1.0, color="#d62728", fill=False, linestyle="--", linewidth=1.8, label="Unit Power Circle")
-    ax1.add_patch(circle)
-    ax1.set_xlabel("In-Phase (I)")
-    ax1.set_ylabel("Quadrature (Q)")
-    ax1.set_title("Transmitted Channel Symbol Constellation", fontweight="bold")
-    ax1.set_aspect("equal", adjustable="box")
-    ax1.legend(loc="upper right")
-    ax1.grid(True, linestyle="--", alpha=0.5)
-
-    # 2. Symbol Amplitude Histogram / Density
-    amplitudes = np.sqrt(i_symbols ** 2 + q_symbols ** 2)
-    ax2.hist(amplitudes, bins=50, density=True, color="#4a90e2", alpha=0.75, edgecolor="black", linewidth=0.5)
-    ax2.set_xlabel("Symbol Magnitude |z|")
-    ax2.set_ylabel("Probability Density")
-    ax2.set_title("Symbol Magnitude Distribution", fontweight="bold")
-    ax2.grid(True, linestyle="--", alpha=0.5)
-
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300)
-    plt.close()
-    print(f"-> Saved symbol constellation plot: {save_path}")
-
-
-def plot_training_curves(
-    train_mse: Optional[List[float]] = None,
-    val_psnr: Optional[List[float]] = None,
-    history_dict: Optional[Dict[str, List[Any]]] = None,
-    save_path: str = os.path.join(config.OUTPUTS_DIR, "training_curves.png"),
-):
-    """
-    Plots training loss (MSE), validation PSNR, and learning rate over training epochs.
-    Reads from actual experiment history if available.
-    """
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    set_plot_style()
-
-    # Try loading real experiment history if not directly passed
-    if history_dict is None:
-        history_candidates = [
-            "./experiments/experiment_2/history.json",
-            "./experiments/experiment_1/history.json",
-        ]
-        for path in history_candidates:
-            if os.path.exists(path):
-                try:
-                    import json
-                    with open(path, "r") as f:
-                        history_dict = json.load(f)
-                    print(f"Loaded real training history from: {path}")
-                    break
-                except Exception as e:
-                    print(f"Error loading {path}: {e}")
-
-    if history_dict and "epoch" in history_dict:
-        epochs = history_dict["epoch"]
-        t_mse = history_dict.get("train_mse", [])
-        v_mse = history_dict.get("val_mse", [])
-        t_psnr = history_dict.get("train_psnr", [])
-        v_psnr = history_dict.get("val_psnr", [])
-        lr_list = history_dict.get("lr", [])
-
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(16, 4.8))
-
-        # 1. MSE Loss
-        ax1.plot(epochs, t_mse, label="Train MSE", color="#2563eb", linewidth=2.0)
-        if v_mse:
-            ax1.plot(epochs, v_mse, label="Val MSE", color="#dc2626", linewidth=2.0, linestyle="--")
-        ax1.set_xlabel("Epoch")
-        ax1.set_ylabel("MSE Loss")
-        ax1.set_title("Training Loss Convergence", fontweight="bold")
-        ax1.grid(True, linestyle="--", alpha=0.6)
-        ax1.legend()
-
-        # 2. PSNR
-        ax2.plot(epochs, t_psnr, label="Train PSNR", color="#2563eb", linewidth=2.0)
-        if v_psnr:
-            ax2.plot(epochs, v_psnr, label="Val PSNR", color="#16a34a", linewidth=2.0, linestyle="--")
-        ax2.set_xlabel("Epoch")
-        ax2.set_ylabel("PSNR (dB)")
-        ax2.set_title("Reconstruction PSNR (dB)", fontweight="bold")
-        ax2.grid(True, linestyle="--", alpha=0.6)
-        ax2.legend()
-
-        # 3. Learning Rate
-        if lr_list:
-            ax3.plot(epochs, lr_list, label="Learning Rate", color="#d97706", linewidth=2.0)
-            ax3.set_xlabel("Epoch")
-            ax3.set_ylabel("Learning Rate")
-            ax3.set_title("Cosine Annealing Schedule", fontweight="bold")
-            ax3.grid(True, linestyle="--", alpha=0.6)
-            ax3.legend()
-
-        plt.tight_layout()
-        plt.savefig(save_path, dpi=300)
-        plt.close()
-        print(f"-> Saved real training curves: {save_path}")
-        return
-
-    # Fallback to simple 2-panel if no history dict
-    t_mse = train_mse or [0.018, 0.008, 0.005, 0.003, 0.002, 0.0017]
-    v_psnr = val_psnr or [19.8, 21.2, 22.8, 24.6, 26.5, 27.6]
-    epochs = list(range(1, len(t_mse) + 1))
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.8))
-    ax1.plot(epochs, t_mse, color="#dc2626", marker="o", linewidth=2.0)
-    ax1.set_xlabel("Epoch")
-    ax1.set_ylabel("Train MSE Loss")
-    ax1.set_title("Training Loss Convergence", fontweight="bold")
-    ax1.grid(True, linestyle="--", alpha=0.6)
-
-    ax2.plot(epochs, v_psnr, color="#16a34a", marker="s", linewidth=2.0)
-    ax2.set_xlabel("Epoch")
-    ax2.set_ylabel("Validation PSNR (dB)")
-    ax2.set_title("Validation PSNR Over Epochs", fontweight="bold")
-    ax2.grid(True, linestyle="--", alpha=0.6)
-
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300)
-    plt.close()
-    print(f"-> Saved training curves: {save_path}")
+__all__ = [
+    "plot_constellation",
+    "plot_error_heatmaps",
+    "plot_psnr_vs_snr",
+    "plot_reconstruction_comparison",
+    "plot_reconstruction_grid",
+    "plot_training_curves",
+    "set_plot_style",
+]
 
 
 def main():
@@ -407,7 +90,7 @@ def main():
             total_loss = 0.0
             total_count = 0
             for idx, (imgs, _) in enumerate(test_loader):
-                if idx >= 10:  # 10 batches for quick plotting
+                if idx >= 10:  # 10 batches for quick evaluation
                     break
                 imgs = imgs.to(device)
                 reconstructed = model(imgs, snr_db=snr)
@@ -453,15 +136,13 @@ def main():
     history_file = os.path.join(exp_dir, "history.json")
     hist_dict = None
     if os.path.exists(history_file):
-        import json
-        with open(history_file, "r") as f:
+        with open(history_file, "r", encoding="utf-8") as f:
             hist_dict = json.load(f)
 
     plot_training_curves(history_dict=hist_dict, save_path=os.path.join(exp_dir, "training_curves.png"))
 
     print("=" * 50)
     print(f"All plots generated successfully in {exp_dir}/ directory!")
-
 
 
 if __name__ == "__main__":

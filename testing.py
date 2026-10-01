@@ -22,16 +22,8 @@ import torchvision.transforms as transforms
 
 import config
 from model import DeepJSCC
-
-
-def calculate_psnr(mse: float, max_val: float = 1.0) -> float:
-    """
-    Computes Peak Signal-to-Noise Ratio (PSNR) in decibels (dB).
-    Formula: PSNR = 10 * log10(max_val^2 / MSE)
-    """
-    if mse <= 1e-10:
-        return 100.0  # Finite numerical cap for near-perfect reconstruction (MSE -> 0 => PSNR -> inf)
-    return 10.0 * math.log10((max_val ** 2) / mse)
+from plotting import plot_reconstruction_comparison
+from utils.metrics import calculate_psnr
 
 
 def get_30_percent_test_loader(
@@ -118,63 +110,6 @@ def evaluate_snr(
     return avg_mse, avg_psnr
 
 
-def save_visual_comparison(
-    model: nn.Module,
-    loader: DataLoader,
-    device: torch.device,
-    snr_list: List[float],
-    save_path: str = os.path.join(config.OUTPUTS_DIR, "reconstruction_comparison.png"),
-    num_samples: int = 5,
-):
-    """
-    Saves a side-by-side visual comparison of original vs reconstructed images
-    transmitted over channels with different SNR values.
-    """
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    model.eval()
-
-    # Get a batch of images
-    images, _ = next(iter(loader))
-    images = images[:num_samples].to(device)
-
-    # Reconstruct images for each SNR in snr_list
-    reconstructions = {}
-    with torch.no_grad():
-        for snr in snr_list:
-            reconstructions[snr] = model(images, snr_db=snr).cpu().clamp(0.0, 1.0)
-
-    images = images.cpu()
-
-    # Plot
-    cols = 1 + len(snr_list)
-    rows = num_samples
-    fig, axes = plt.subplots(rows, cols, figsize=(cols * 2.2, rows * 2.2))
-
-    if rows == 1:
-        axes = axes.reshape(1, -1)
-
-    for i in range(rows):
-        # Column 0: Original
-        orig_img = images[i].permute(1, 2, 0).numpy()
-        axes[i, 0].imshow(orig_img)
-        axes[i, 0].axis("off")
-        if i == 0:
-            axes[i, 0].set_title("Original", fontsize=12, fontweight="bold")
-
-        # Subsequent columns: Reconstructions at different SNRs
-        for j, snr in enumerate(snr_list):
-            recon_img = reconstructions[snr][i].permute(1, 2, 0).numpy()
-            axes[i, j + 1].imshow(recon_img)
-            axes[i, j + 1].axis("off")
-            if i == 0:
-                axes[i, j + 1].set_title(f"SNR = {snr} dB", fontsize=12, fontweight="bold")
-
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=200)
-    plt.close()
-    print(f"\nVisual comparison saved to: {save_path}")
-
-
 def main():
     parser = argparse.ArgumentParser(description="Test Deep JSCC Model on 30% Evaluation Split")
     parser.add_argument("--exp-name", type=str, default=config.DEFAULT_EXP_NAME, help="Experiment name (e.g., experiment_2)")
@@ -243,8 +178,8 @@ def main():
         print(f"{snr:<20.1f} {curr_mse:<15.5f} {curr_psnr:<15.2f}")
     print("-" * 55)
 
-    # 6. Save visual comparison grid
-    save_visual_comparison(
+    # 6. Save visual comparison grid using modular plotting package
+    plot_reconstruction_comparison(
         model=model,
         loader=eval_loader,
         device=device,
