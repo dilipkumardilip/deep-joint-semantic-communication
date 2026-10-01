@@ -93,10 +93,16 @@ def get_cifar10_loaders(
     return train_loader, test_loader
 
 
+from typing import Sized, Tuple, cast
+
 if __name__ == "__main__":
     train_loader, test_loader = get_cifar10_loaders(data_dir="./data", batch_size=16, num_workers=0)
     images, labels = next(iter(train_loader))
+    train_count = len(cast(Sized, train_loader.dataset))
+    test_count = len(cast(Sized, test_loader.dataset))
     print(f"Batch images shape: {images.shape}")
     print(f"Batch pixel range:  [{images.min().item():.3f}, {images.max().item():.3f}]")
-    print(f"Total train batches: {len(train_loader)} ({len(train_loader.dataset)} images)")
-    print(f"Total test batches:  {len(test_loader)} ({len(test_loader.dataset)} images)")
+    print(f"Total train batches: {len(train_loader)} ({train_count} images)")
+    print(f"Total test batches:  {len(test_loader)} ({test_count} images)")
+
+

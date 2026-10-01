@@ -1,5 +1,7 @@
+from typing import Optional
 import torch
 import torch.nn as nn
+
 
 
 class PowerNormalization(nn.Module):
@@ -170,7 +172,7 @@ class AWGNChannel(nn.Module):
         self.snr_db = snr_db
         self.power = power
 
-    def forward(self, z: torch.Tensor, snr_db: float = None) -> torch.Tensor:
+    def forward(self, z: torch.Tensor, snr_db: Optional[float] = None) -> torch.Tensor:
         if snr_db is None:
             snr_db = self.snr_db
             
@@ -194,7 +196,7 @@ class DeepJSCC(nn.Module):
         self.channel = AWGNChannel(snr_db=snr_db, power=power)
         self.decoder = JSCCDecoder(channel_c=channel_c, out_channels=in_channels)
 
-    def forward(self, x: torch.Tensor, snr_db: float = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, snr_db: Optional[float] = None) -> torch.Tensor:
         # 1. Encode image to channel symbols
         z = self.encoder(x)
         
