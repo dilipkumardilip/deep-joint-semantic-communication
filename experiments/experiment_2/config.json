@@ -1,0 +1,53 @@
+{
+  "experiment_name": "experiment_2",
+  "description": "50-Epoch Deep JSCC training with Cosine Annealing Learning Rate Schedule",
+  "timestamp": "2026-10-02 01:13:53",
+  "device": "mps",
+  "model": {
+    "in_channels": 3,
+    "channel_c": 16,
+    "power": 1.0,
+    "image_size": [32, 32],
+    "transmitted_symbols_k": 1024
+  },
+  "dataset": {
+    "data_dir": "./data",
+    "dataset_name": "CIFAR-10",
+    "train_split": 0.7,
+    "val_split": 0.3,
+    "train_samples": 35000,
+    "val_samples": 15000,
+    "test_samples": 10000,
+    "batch_size": 64,
+    "test_batch_size": 64,
+    "num_workers": 0,
+    "random_seed": 42
+  },
+  "channel": {
+    "channel_type": "AWGN",
+    "train_snr_db": 10.0,
+    "test_snrs": [-5.0, 0.0, 5.0, 10.0, 15.0, 20.0, 25.0]
+  },
+  "training": {
+    "epochs": 50,
+    "initial_lr": 0.001,
+    "eta_min": 1e-05,
+    "weight_decay": 0.0,
+    "scheduler": "CosineAnnealingLR",
+    "loss_criterion": "MSELoss",
+    "optimizer": "Adam"
+  },
+  "results_summary": {
+    "best_val_psnr_db": 27.61,
+    "test_mse": 0.00173,
+    "test_psnr_db": 27.61,
+    "total_training_duration": "6m 25.2s",
+    "total_training_seconds": 385.2,
+    "avg_epoch_seconds": 7.7
+  },
+  "paths": {
+    "checkpoint_dir": "./checkpoints",
+    "best_model_path": "./checkpoints/experiment_2_best_model.pth",
+    "experiment_dir": "./experiments/experiment_2"
+  }
+}

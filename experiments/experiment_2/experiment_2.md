@@ -74,6 +74,7 @@ This experiment trains the Deep Joint Source-Channel Communication (Deep JSCC) i
 
 ## 6. Generated Visual Artifacts & Files
 All outputs for this experiment are housed within `experiments/experiment_2/`:
+- `experiments/experiment_2/config.json`: Frozen hyperparameter & training run configuration snapshot
 - `experiments/experiment_2/history.json`: Complete training history log with loss, PSNR, LR, and epoch timings
 - `experiments/experiment_2/training_curves.png`: 3-panel MSE loss, PSNR, and Cosine Annealing learning rate curves
 - `experiments/experiment_2/psnr_vs_snr.png`: Deep JSCC Rate-Distortion curve across wireless SNRs (-5 dB to 25 dB)

@@ -28,7 +28,7 @@ import config
 from model import DeepJSCC
 from plotting import plot_training_curves
 from utils.metrics import calculate_psnr
-from utils.reporting import generate_experiment_report, save_history_json
+from utils.reporting import format_duration, generate_experiment_report, save_history_json
 
 
 def get_cifar10_70_percent_split(
@@ -335,8 +335,8 @@ def main():
     print(f"Final Test MSE:  {test_mse:.5f}")
     print(f"Final Test PSNR: {test_psnr:.2f} dB")
 
-    # 6. Generate detailed Experiment Markdown file
-    md_file = os.path.join("./experiments", f"{args.exp_name}.md")
+    # 6. Generate detailed Experiment Markdown file inside the experiment folder
+    md_file = os.path.join(exp_dir, f"{args.exp_name}.md")
     generate_experiment_report(
         exp_name=args.exp_name,
         epochs=args.epochs,
@@ -353,6 +353,60 @@ def main():
         save_path=md_file,
     )
     print(f"\n[SUCCESS] Generated experiment report: {md_file}")
+
+    # 7. Save exact run configuration snapshot inside the experiment folder
+    exp_config = {
+        "experiment_name": args.exp_name,
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "device": str(device),
+        "model": {
+            "in_channels": config.IN_CHANNELS,
+            "channel_c": args.channel_c,
+            "power": config.POWER_CONSTRAINT,
+            "image_size": list(config.IMG_SIZE),
+            "transmitted_symbols_k": args.channel_c * 8 * 8,
+        },
+        "dataset": {
+            "data_dir": args.data_dir,
+            "dataset_name": "CIFAR-10",
+            "train_split": args.train_split,
+            "val_split": round(1.0 - args.train_split, 2),
+            "batch_size": args.batch_size,
+            "num_workers": config.NUM_WORKERS,
+            "random_seed": config.RANDOM_SEED,
+        },
+        "channel": {
+            "channel_type": "AWGN",
+            "train_snr_db": args.snr,
+            "test_snrs": config.TEST_SNRS,
+        },
+        "training": {
+            "epochs": args.epochs,
+            "initial_lr": args.lr,
+            "eta_min": args.eta_min,
+            "weight_decay": config.WEIGHT_DECAY,
+            "scheduler": "CosineAnnealingLR",
+            "loss_criterion": "MSELoss",
+            "optimizer": "Adam",
+        },
+        "results_summary": {
+            "best_val_psnr_db": round(best_val_psnr, 2),
+            "test_mse": round(test_mse, 5),
+            "test_psnr_db": round(test_psnr, 2),
+            "total_training_duration": format_duration(total_training_time),
+            "total_training_seconds": total_training_time,
+            "avg_epoch_seconds": history["avg_epoch_time_seconds"],
+        },
+        "paths": {
+            "checkpoint_dir": args.save_dir,
+            "best_model_path": best_model_path,
+            "experiment_dir": exp_dir,
+        },
+    }
+    exp_config_path = os.path.join(exp_dir, "config.json")
+    with open(exp_config_path, "w", encoding="utf-8") as f:
+        json.dump(exp_config, f, indent=2)
+    print(f"[SUCCESS] Saved experiment configuration snapshot: {exp_config_path}")
 
 
 
