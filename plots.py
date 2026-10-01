@@ -23,6 +23,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
+import config
 from model import DeepJSCC
 from dataset import get_cifar10_loaders
 
@@ -296,18 +297,23 @@ def plot_training_curves(
 
 def main():
     parser = argparse.ArgumentParser(description="Generate Deep JSCC Publication Plots")
-    parser.add_argument("--checkpoint", type=str, default="./checkpoints/best_jscc_model.pth", help="Model checkpoint")
-    parser.add_argument("--data-dir", type=str, default="./data", help="Path to CIFAR-10 data")
-    parser.add_argument("--channel-c", type=int, default=16, help="Channel bandwidth parameter 'c'")
+    parser.add_argument("--checkpoint", type=str, default=config.BEST_MODEL_PATH, help="Model checkpoint")
+    parser.add_argument("--data-dir", type=str, default=config.DATA_DIR, help="Path to CIFAR-10 data")
+    parser.add_argument("--channel-c", type=int, default=config.CHANNEL_C, help="Channel bandwidth parameter 'c'")
     parser.add_argument("--all", action="store_true", help="Generate all types of plots")
     args = parser.parse_args()
 
     # Device
-    device = torch.device("mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu"))
+    device = config.get_device()
     print(f"Using device: {device}")
 
     # Load Model
-    model = DeepJSCC(in_channels=3, channel_c=args.channel_c, power=1.0).to(device)
+    model = DeepJSCC(
+        in_channels=config.IN_CHANNELS,
+        channel_c=args.channel_c,
+        power=config.POWER_CONSTRAINT,
+    ).to(device)
+
     if os.path.exists(args.checkpoint):
         print(f"Loading checkpoint: {args.checkpoint}")
         ckpt = torch.load(args.checkpoint, map_location=device, weights_only=True)
@@ -316,13 +322,13 @@ def main():
         print("[NOTE] No checkpoint found. Using initialized model.")
 
     # Load Data
-    _, test_loader = get_cifar10_loaders(data_dir=args.data_dir, batch_size=64, num_workers=0)
+    _, test_loader = get_cifar10_loaders(data_dir=args.data_dir, batch_size=config.BATCH_SIZE, num_workers=config.NUM_WORKERS)
 
-    os.makedirs("./outputs", exist_ok=True)
-    print("\nGenerating Deep JSCC Plots in ./outputs/ ...\n" + "=" * 50)
+    os.makedirs(config.OUTPUTS_DIR, exist_ok=True)
+    print(f"\nGenerating Deep JSCC Plots in {config.OUTPUTS_DIR}/ ...\n" + "=" * 50)
 
     # 1. PSNR vs SNR Curve
-    snr_range = [-5.0, 0.0, 5.0, 10.0, 15.0, 20.0, 25.0]
+    snr_range = config.TEST_SNRS
     psnr_results = []
     print("Evaluating PSNR across SNR range...")
     criterion = nn.MSELoss()
@@ -333,7 +339,7 @@ def main():
             total_loss = 0.0
             total_count = 0
             for idx, (imgs, _) in enumerate(test_loader):
-                if idx >= 10:  # 10 batches (640 images) for quick plotting
+                if idx >= 10:  # 10 batches for quick plotting
                     break
                 imgs = imgs.to(device)
                 reconstructed = model(imgs, snr_db=snr)
@@ -344,7 +350,7 @@ def main():
             psnr = 10.0 * math.log10(1.0 / max(avg_mse, 1e-10))
             psnr_results.append(psnr)
 
-    plot_psnr_vs_snr(snr_range, psnr_results, save_path="./outputs/psnr_vs_snr.png")
+    plot_psnr_vs_snr(snr_range, psnr_results, save_path=os.path.join(config.OUTPUTS_DIR, "psnr_vs_snr.png"))
 
     # 2. Reconstruction Comparison Grid
     plot_reconstruction_grid(
@@ -353,7 +359,7 @@ def main():
         device=device,
         snr_list=[0.0, 10.0, 20.0],
         num_samples=5,
-        save_path="./outputs/reconstruction_grid.png",
+        save_path=os.path.join(config.OUTPUTS_DIR, "reconstruction_grid.png"),
     )
 
     # 3. Error Heatmaps
@@ -361,9 +367,9 @@ def main():
         model=model,
         loader=test_loader,
         device=device,
-        snr=10.0,
+        snr=config.DEFAULT_SNR_DB,
         num_samples=4,
-        save_path="./outputs/error_heatmaps.png",
+        save_path=os.path.join(config.OUTPUTS_DIR, "error_heatmaps.png"),
     )
 
     # 4. Transmitted Channel Symbol Constellation
@@ -372,13 +378,13 @@ def main():
         loader=test_loader,
         device=device,
         num_batches=5,
-        save_path="./outputs/symbol_constellation.png",
+        save_path=os.path.join(config.OUTPUTS_DIR, "symbol_constellation.png"),
     )
 
     # 5. Training / Validation Curves
     sample_train_mse = [0.083, 0.045, 0.030, 0.022, 0.018, 0.015, 0.014, 0.013, 0.012, 0.011]
     sample_val_psnr = [10.8, 13.5, 15.2, 16.6, 17.4, 18.2, 18.5, 18.8, 19.1, 19.3]
-    plot_training_curves(sample_train_mse, sample_val_psnr, save_path="./outputs/training_curves.png")
+    plot_training_curves(sample_train_mse, sample_val_psnr, save_path=os.path.join(config.OUTPUTS_DIR, "training_curves.png"))
 
     print("=" * 50)
     print("All plots generated successfully in ./outputs/ directory!")

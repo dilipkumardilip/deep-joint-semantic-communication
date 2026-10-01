@@ -2,22 +2,24 @@ from typing import Optional
 import torch
 import torch.nn as nn
 
+import config
 
 
 class PowerNormalization(nn.Module):
     """
     Channel Power Normalization Layer.
     
-    Constrains the average transmit power to P (default P = 1.0):
+    Constrains the average transmit power to P (default from config.json):
         P_avg = (1 / k) * sum(z_i^2) <= P
     
     Formula:
         z_norm = z * sqrt(k * P) / ||z||_2
         where k is the total number of channel symbols per sample.
     """
-    def __init__(self, power: float = 1.0):
+    def __init__(self, power: float = config.POWER_CONSTRAINT):
         super().__init__()
         self.power = power
+
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
         # z shape: (Batch_size, Channels, Height, Width)
@@ -58,7 +60,12 @@ class JSCCEncoder(nn.Module):
         channel_snr_dim (int): Number of latent feature channels 'c' sent over the wireless channel.
         power (float): Transmit power constraint P. Default: 1.0.
     """
-    def __init__(self, in_channels: int = 3, channel_c: int = 16, power: float = 1.0):
+    def __init__(
+        self,
+        in_channels: int = config.IN_CHANNELS,
+        channel_c: int = config.CHANNEL_C,
+        power: float = config.POWER_CONSTRAINT,
+    ):
         super().__init__()
         self.channel_c = channel_c
         
@@ -121,7 +128,7 @@ class JSCCDecoder(nn.Module):
         channel_c (int): Number of transmitted feature channels 'c'.
         out_channels (int): Number of reconstructed image channels (e.g., 3 for RGB). Default: 3.
     """
-    def __init__(self, channel_c: int = 16, out_channels: int = 3):
+    def __init__(self, channel_c: int = config.CHANNEL_C, out_channels: int = config.IN_CHANNELS):
         super().__init__()
         
         # 5 Transposed Convolutional Layers as specified in the pipeline diagram:
@@ -167,7 +174,7 @@ class AWGNChannel(nn.Module):
     Given Signal-to-Noise Ratio (SNR in dB):
         SNR_linear = 10^(SNR_dB / 10) = P / (2 * sigma^2) (for complex) or P / sigma^2 (for real)
     """
-    def __init__(self, snr_db: float = 10.0, power: float = 1.0):
+    def __init__(self, snr_db: float = config.DEFAULT_SNR_DB, power: float = config.POWER_CONSTRAINT):
         super().__init__()
         self.snr_db = snr_db
         self.power = power
@@ -190,11 +197,18 @@ class DeepJSCC(nn.Module):
     End-to-End Deep Joint Source-Channel Communication System.
     Connects Encoder -> Communication Channel -> Decoder.
     """
-    def __init__(self, in_channels: int = 3, channel_c: int = 16, power: float = 1.0, snr_db: float = 10.0):
+    def __init__(
+        self,
+        in_channels: int = config.IN_CHANNELS,
+        channel_c: int = config.CHANNEL_C,
+        power: float = config.POWER_CONSTRAINT,
+        snr_db: float = config.DEFAULT_SNR_DB,
+    ):
         super().__init__()
         self.encoder = JSCCEncoder(in_channels=in_channels, channel_c=channel_c, power=power)
         self.channel = AWGNChannel(snr_db=snr_db, power=power)
         self.decoder = JSCCDecoder(channel_c=channel_c, out_channels=in_channels)
+
 
     def forward(self, x: torch.Tensor, snr_db: Optional[float] = None) -> torch.Tensor:
         # 1. Encode image to channel symbols

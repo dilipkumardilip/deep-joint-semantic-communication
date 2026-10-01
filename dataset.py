@@ -11,12 +11,14 @@ from torch.utils.data import DataLoader
 import torchvision
 import torchvision.transforms as transforms
 
+import config
+
 
 def get_cifar10_loaders(
-    data_dir: str = "./data",
-    batch_size: int = 64,
-    test_batch_size: int = 64,
-    num_workers: int = 2,
+    data_dir: str = config.DATA_DIR,
+    batch_size: int = config.BATCH_SIZE,
+    test_batch_size: int = config.TEST_BATCH_SIZE,
+    num_workers: int = config.NUM_WORKERS,
     augment: bool = False,
 ) -> Tuple[DataLoader, DataLoader]:
     """

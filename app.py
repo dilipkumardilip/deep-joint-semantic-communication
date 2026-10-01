@@ -23,19 +23,24 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 
+import config
 from model import DeepJSCC
 
 
-# Load model globally
-DEVICE = torch.device("mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu"))
-MODEL = DeepJSCC(in_channels=3, channel_c=16, power=1.0).to(DEVICE)
-CHECKPOINT_PATH = "./checkpoints/best_jscc_model.pth"
+# Load model globally using config
+DEVICE = config.get_device()
+MODEL = DeepJSCC(
+    in_channels=config.IN_CHANNELS,
+    channel_c=config.CHANNEL_C,
+    power=config.POWER_CONSTRAINT,
+).to(DEVICE)
+CHECKPOINT_PATH = config.BEST_MODEL_PATH
 
 if os.path.exists(CHECKPOINT_PATH):
     print(f"Loading trained checkpoint: {CHECKPOINT_PATH}")
     ckpt = torch.load(CHECKPOINT_PATH, map_location=DEVICE, weights_only=True)
     MODEL.load_state_dict(ckpt["model_state_dict"])
-    print(f"Model loaded (trained at SNR={ckpt.get('snr_db', 10.0)} dB)")
+    print(f"Model loaded (trained at SNR={ckpt.get('snr_db', config.DEFAULT_SNR_DB)} dB)")
 else:
     print("[INFO] Checkpoint not found. Running with initialized model.")
 
@@ -43,7 +48,7 @@ MODEL.eval()
 
 # Image transforms
 IMG_TRANSFORM = transforms.Compose([
-    transforms.Resize((32, 32)),
+    transforms.Resize(config.IMG_SIZE),
     transforms.ToTensor(),
 ])
 
@@ -280,8 +285,8 @@ class SemanticCommHandler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
 
-def run_server(port: int = 8000):
-    server_address = ("", port)
+def run_server(host: str = config.WEB_HOST, port: int = config.WEB_PORT):
+    server_address = (host, port)
     httpd = HTTPServer(server_address, SemanticCommHandler)
     print("=" * 60)
     print(f"Deep JSCC Semantic Communication Web App running at:")
@@ -296,5 +301,6 @@ def run_server(port: int = 8000):
 
 if __name__ == "__main__":
     import sys
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else config.WEB_PORT
     run_server(port=port)
+

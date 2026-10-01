@@ -1,0 +1,36 @@
+{
+  "model": {
+    "in_channels": 3,
+    "channel_c": 16,
+    "power": 1.0,
+    "image_size": [32, 32]
+  },
+  "dataset": {
+    "data_dir": "./data",
+    "train_split": 0.7,
+    "val_split": 0.3,
+    "batch_size": 64,
+    "test_batch_size": 64,
+    "num_workers": 0,
+    "random_seed": 42
+  },
+  "channel": {
+    "default_snr_db": 10.0,
+    "test_snrs": [-5.0, 0.0, 5.0, 10.0, 15.0, 20.0, 25.0]
+  },
+  "training": {
+    "epochs": 50,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0,
+    "scheduler": "cosine"
+  },
+  "paths": {
+    "checkpoint_dir": "./checkpoints",
+    "best_model_path": "./checkpoints/best_jscc_model.pth",
+    "outputs_dir": "./outputs"
+  },
+  "web": {
+    "host": "0.0.0.0",
+    "port": 8000
+  }
+}

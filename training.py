@@ -20,6 +20,7 @@ from torch.utils.data import DataLoader, random_split
 import torchvision
 import torchvision.transforms as transforms
 
+import config
 from model import DeepJSCC
 
 
@@ -34,11 +35,11 @@ def calculate_psnr(mse: float, max_val: float = 1.0) -> float:
 
 
 def get_cifar10_70_percent_split(
-    data_dir: str = "./data",
-    train_ratio: float = 0.7,
-    batch_size: int = 64,
-    num_workers: int = 2,
-    seed: int = 42,
+    data_dir: str = config.DATA_DIR,
+    train_ratio: float = config.TRAIN_SPLIT,
+    batch_size: int = config.BATCH_SIZE,
+    num_workers: int = config.NUM_WORKERS,
+    seed: int = config.RANDOM_SEED,
 ) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """
     Loads CIFAR-10 and splits the 50,000 training images into:
@@ -183,23 +184,18 @@ def evaluate(
 
 def main():
     parser = argparse.ArgumentParser(description="Train Deep JSCC Image Semantic Communication Model")
-    parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
-    parser.add_argument("--batch-size", type=int, default=64, help="Batch size for training")
-    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate for Adam optimizer")
-    parser.add_argument("--channel-c", type=int, default=16, help="Number of latent channel features 'c'")
-    parser.add_argument("--snr", type=float, default=10.0, help="Channel Signal-to-Noise Ratio (SNR) in dB")
-    parser.add_argument("--train-split", type=float, default=0.7, help="Fraction of data used for training (default: 0.7 = 70%)")
-    parser.add_argument("--save-dir", type=str, default="./checkpoints", help="Directory to save model checkpoints")
-    parser.add_argument("--data-dir", type=str, default="./data", help="Directory where CIFAR-10 data is stored")
+    parser.add_argument("--epochs", type=int, default=config.EPOCHS, help="Number of training epochs")
+    parser.add_argument("--batch-size", type=int, default=config.BATCH_SIZE, help="Batch size for training")
+    parser.add_argument("--lr", type=float, default=config.LEARNING_RATE, help="Learning rate for Adam optimizer")
+    parser.add_argument("--channel-c", type=int, default=config.CHANNEL_C, help="Number of latent channel features 'c'")
+    parser.add_argument("--snr", type=float, default=config.DEFAULT_SNR_DB, help="Channel Signal-to-Noise Ratio (SNR) in dB")
+    parser.add_argument("--train-split", type=float, default=config.TRAIN_SPLIT, help="Fraction of data used for training")
+    parser.add_argument("--save-dir", type=str, default=config.CHECKPOINT_DIR, help="Directory to save model checkpoints")
+    parser.add_argument("--data-dir", type=str, default=config.DATA_DIR, help="Directory where CIFAR-10 data is stored")
     args = parser.parse_args()
 
-    # 1. Device configuration (MPS for Apple Silicon, CUDA for Nvidia, or CPU)
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-    elif torch.backends.mps.is_available():
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
+    # 1. Device configuration
+    device = config.get_device()
     print(f"Using compute device: {device}")
 
     # 2. Data Preparation (70% Train, 30% Validation)
@@ -208,7 +204,7 @@ def main():
         data_dir=args.data_dir,
         train_ratio=args.train_split,
         batch_size=args.batch_size,
-        num_workers=2,
+        num_workers=config.NUM_WORKERS,
     )
     print(f"Training set:   {len(train_loader.dataset)} images ({len(train_loader)} batches)")  # type: ignore[arg-type]
     print(f"Validation set: {len(val_loader.dataset)} images ({len(val_loader)} batches)")      # type: ignore[arg-type]
@@ -217,20 +213,20 @@ def main():
     # 3. Model, Loss, Optimizer
     print(f"\nInitializing Deep JSCC Model (c={args.channel_c}, SNR={args.snr} dB)...")
     model = DeepJSCC(
-        in_channels=3,
+        in_channels=config.IN_CHANNELS,
         channel_c=args.channel_c,
-        power=1.0,
+        power=config.POWER_CONSTRAINT,
         snr_db=args.snr,
     ).to(device)
 
     criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=config.WEIGHT_DECAY)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     # 4. Training Loop
     os.makedirs(args.save_dir, exist_ok=True)
     best_val_psnr = -1.0
-    best_model_path = os.path.join(args.save_dir, "best_jscc_model.pth")
+    best_model_path = config.BEST_MODEL_PATH
 
     print("\n" + "=" * 70)
     print(f"{'Epoch':<8} {'Train MSE':<12} {'Train PSNR':<14} {'Val MSE':<12} {'Val PSNR':<12} {'Status'}")

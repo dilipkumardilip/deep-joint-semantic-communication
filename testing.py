@@ -20,6 +20,7 @@ from torch.utils.data import DataLoader, random_split
 import torchvision
 import torchvision.transforms as transforms
 
+import config
 from model import DeepJSCC
 
 
@@ -34,11 +35,11 @@ def calculate_psnr(mse: float, max_val: float = 1.0) -> float:
 
 
 def get_30_percent_test_loader(
-    data_dir: str = "./data",
-    split_ratio: float = 0.7,
-    batch_size: int = 64,
-    num_workers: int = 2,
-    seed: int = 42,
+    data_dir: str = config.DATA_DIR,
+    split_ratio: float = config.TRAIN_SPLIT,
+    batch_size: int = config.TEST_BATCH_SIZE,
+    num_workers: int = config.NUM_WORKERS,
+    seed: int = config.RANDOM_SEED,
 ) -> DataLoader:
     """
     Loads CIFAR-10 and extracts the 30% held-out split (15,000 images)
@@ -176,42 +177,41 @@ def save_visual_comparison(
 
 def main():
     parser = argparse.ArgumentParser(description="Test Deep JSCC Model on 30% Evaluation Split")
-    parser.add_argument("--checkpoint", type=str, default="./checkpoints/best_jscc_model.pth", help="Path to trained model checkpoint")
-    parser.add_argument("--channel-c", type=int, default=16, help="Channel bandwidth parameter 'c'")
-    parser.add_argument("--batch-size", type=int, default=64, help="Batch size for evaluation")
-    parser.add_argument("--data-dir", type=str, default="./data", help="Directory where CIFAR-10 data is stored")
-    parser.add_argument("--snr-sweep", action="store_true", help="Evaluate across multiple SNRs (0, 5, 10, 15, 20 dB)")
-    parser.add_argument("--save-plot", type=str, default="./outputs/reconstruction_comparison.png", help="Path to save comparison image")
+    parser.add_argument("--checkpoint", type=str, default=config.BEST_MODEL_PATH, help="Path to trained model checkpoint")
+    parser.add_argument("--channel-c", type=int, default=config.CHANNEL_C, help="Channel bandwidth parameter 'c'")
+    parser.add_argument("--batch-size", type=int, default=config.TEST_BATCH_SIZE, help="Batch size for evaluation")
+    parser.add_argument("--data-dir", type=str, default=config.DATA_DIR, help="Directory where CIFAR-10 data is stored")
+    parser.add_argument("--snr-sweep", action="store_true", help="Evaluate across multiple SNRs")
+    parser.add_argument("--save-plot", type=str, default=os.path.join(config.OUTPUTS_DIR, "reconstruction_comparison.png"), help="Path to save comparison image")
     args = parser.parse_args()
 
     # 1. Device selection
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-    elif torch.backends.mps.is_available():
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
+    device = config.get_device()
     print(f"Using compute device: {device}")
 
     # 2. Load 30% Data Split
     print("\nLoading 30% held-out evaluation dataset (15,000 images)...")
     eval_loader = get_30_percent_test_loader(
         data_dir=args.data_dir,
-        split_ratio=0.7,
+        split_ratio=config.TRAIN_SPLIT,
         batch_size=args.batch_size,
-        num_workers=2,
+        num_workers=config.NUM_WORKERS,
     )
     print(f"Evaluation set loaded: {len(eval_loader.dataset)} images ({len(eval_loader)} batches)")  # type: ignore[arg-type]
 
     # 3. Model setup & checkpoint loading
-    model = DeepJSCC(in_channels=3, channel_c=args.channel_c, power=1.0).to(device)
+    model = DeepJSCC(
+        in_channels=config.IN_CHANNELS,
+        channel_c=args.channel_c,
+        power=config.POWER_CONSTRAINT,
+    ).to(device)
 
-    trained_snr = 10.0
+    trained_snr = config.DEFAULT_SNR_DB
     if os.path.exists(args.checkpoint):
         print(f"\nLoading weights from checkpoint: {args.checkpoint}")
         checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=True)
         model.load_state_dict(checkpoint["model_state_dict"])
-        trained_snr = checkpoint.get("snr_db", 10.0)
+        trained_snr = checkpoint.get("snr_db", config.DEFAULT_SNR_DB)
         print(f"Model trained at SNR = {trained_snr} dB, best val PSNR = {checkpoint.get('val_psnr', 'N/A'):.2f} dB")
     else:
         print(f"\n[WARNING] Checkpoint not found at {args.checkpoint}. Running evaluation with initialized weights.")
@@ -226,7 +226,7 @@ def main():
     print("=" * 55)
 
     # 5. Multi-SNR Robustness Evaluation (Deep JSCC Characteristic Curve)
-    test_snrs = [0.0, 5.0, 10.0, 15.0, 20.0]
+    test_snrs = [s for s in config.TEST_SNRS if s in [0.0, 5.0, 10.0, 15.0, 20.0]] or [0.0, 5.0, 10.0, 15.0, 20.0]
     print("\n" + "-" * 55)
     print("Performance across Wireless Channel SNRs (PSNR vs SNR):")
     print("-" * 55)
