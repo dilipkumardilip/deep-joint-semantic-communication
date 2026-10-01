@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 import config
-from plotting.style import set_plot_style
+from .style import set_plot_style
 
 
 def plot_error_heatmaps(

@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 import matplotlib.pyplot as plt
 
 import config
-from plotting.style import set_plot_style
+from .style import set_plot_style
 
 
 def plot_training_curves(

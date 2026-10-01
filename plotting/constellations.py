@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 import config
 from model import DeepJSCC
-from plotting.style import set_plot_style
+from .style import set_plot_style
 
 
 def plot_constellation(

@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 import matplotlib.pyplot as plt
 
 import config
-from plotting.style import set_plot_style
+from .style import set_plot_style
 
 
 def plot_psnr_vs_snr(
