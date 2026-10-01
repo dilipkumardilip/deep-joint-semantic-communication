@@ -27,7 +27,7 @@
   "paths": {
     "checkpoint_dir": "./checkpoints",
     "best_model_path": "./checkpoints/best_jscc_model.pth",
-    "outputs_dir": "./outputs"
+    "experiments_dir": "./experiments"
   },
   "web": {
     "host": "0.0.0.0",

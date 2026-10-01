@@ -5,7 +5,7 @@ Features:
 - Evaluates the trained Deep JSCC model on the remaining 30% data (15,000 images).
 - Computes Test MSE and Peak Signal-to-Noise Ratio (PSNR in dB).
 - Evaluates performance across multiple Channel SNRs (e.g., 0 dB to 20 dB).
-- Saves visual comparisons (Original vs Reconstructed images) to `./outputs/reconstruction_comparison.png`.
+- Saves visual comparisons (Original vs Reconstructed images) to `./experiments/<exp_name>/reconstruction_comparison.png`.
 """
 
 import argparse
@@ -123,7 +123,7 @@ def save_visual_comparison(
     loader: DataLoader,
     device: torch.device,
     snr_list: List[float],
-    save_path: str = "./outputs/reconstruction_comparison.png",
+    save_path: str = os.path.join(config.OUTPUTS_DIR, "reconstruction_comparison.png"),
     num_samples: int = 5,
 ):
     """
@@ -177,13 +177,18 @@ def save_visual_comparison(
 
 def main():
     parser = argparse.ArgumentParser(description="Test Deep JSCC Model on 30% Evaluation Split")
+    parser.add_argument("--exp-name", type=str, default=config.DEFAULT_EXP_NAME, help="Experiment name (e.g., experiment_2)")
     parser.add_argument("--checkpoint", type=str, default=config.BEST_MODEL_PATH, help="Path to trained model checkpoint")
     parser.add_argument("--channel-c", type=int, default=config.CHANNEL_C, help="Channel bandwidth parameter 'c'")
     parser.add_argument("--batch-size", type=int, default=config.TEST_BATCH_SIZE, help="Batch size for evaluation")
     parser.add_argument("--data-dir", type=str, default=config.DATA_DIR, help="Directory where CIFAR-10 data is stored")
     parser.add_argument("--snr-sweep", action="store_true", help="Evaluate across multiple SNRs")
-    parser.add_argument("--save-plot", type=str, default=os.path.join(config.OUTPUTS_DIR, "reconstruction_comparison.png"), help="Path to save comparison image")
+    parser.add_argument("--save-plot", type=str, default=None, help="Path to save comparison image")
     args = parser.parse_args()
+
+    exp_dir = os.path.join(config.EXPERIMENTS_DIR, args.exp_name)
+    os.makedirs(exp_dir, exist_ok=True)
+    save_plot_path = args.save_plot or os.path.join(exp_dir, "reconstruction_comparison.png")
 
     # 1. Device selection
     device = config.get_device()
@@ -244,7 +249,7 @@ def main():
         loader=eval_loader,
         device=device,
         snr_list=[0.0, 10.0, 20.0],
-        save_path=args.save_plot,
+        save_path=save_plot_path,
         num_samples=5,
     )
     print("Evaluation completed successfully!")

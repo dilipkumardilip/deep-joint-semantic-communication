@@ -45,7 +45,7 @@ def load_config_json(file_path: str = CONFIG_FILE_PATH) -> Dict[str, Any]:
         "paths": {
             "checkpoint_dir": "./checkpoints",
             "best_model_path": "./checkpoints/best_jscc_model.pth",
-            "outputs_dir": "./outputs",
+            "experiments_dir": "./experiments",
         },
         "web": {
             "host": "0.0.0.0",
@@ -105,7 +105,9 @@ SCHEDULER_TYPE: str = str(TRAIN_CONFIG.get("scheduler", "cosine"))
 PATHS_CONFIG: Dict[str, Any] = CONFIG.get("paths", {})
 CHECKPOINT_DIR: str = str(PATHS_CONFIG.get("checkpoint_dir", "./checkpoints"))
 BEST_MODEL_PATH: str = str(PATHS_CONFIG.get("best_model_path", "./checkpoints/best_jscc_model.pth"))
-OUTPUTS_DIR: str = str(PATHS_CONFIG.get("outputs_dir", "./outputs"))
+EXPERIMENTS_DIR: str = str(PATHS_CONFIG.get("experiments_dir", "./experiments"))
+DEFAULT_EXP_NAME: str = "experiment_2"
+OUTPUTS_DIR: str = os.path.join(EXPERIMENTS_DIR, DEFAULT_EXP_NAME)
 
 # Web Parameters
 WEB_CONFIG: Dict[str, Any] = CONFIG.get("web", {})

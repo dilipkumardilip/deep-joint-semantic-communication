@@ -46,7 +46,7 @@ def plot_psnr_vs_snr(
     snr_list: List[float],
     psnr_list: List[float],
     title: str = "Deep JSCC: PSNR vs Channel SNR",
-    save_path: str = "./outputs/psnr_vs_snr.png",
+    save_path: str = os.path.join(config.OUTPUTS_DIR, "psnr_vs_snr.png"),
     benchmark_data: Optional[Dict[str, List[float]]] = None,
 ):
     """
@@ -98,7 +98,7 @@ def plot_reconstruction_grid(
     device: torch.device,
     snr_list: List[float],
     num_samples: int = 5,
-    save_path: str = "./outputs/reconstruction_grid.png",
+    save_path: str = os.path.join(config.OUTPUTS_DIR, "reconstruction_grid.png"),
 ):
     """
     Plots a grid comparing original images with their reconstructions across various SNRs.
@@ -148,7 +148,7 @@ def plot_error_heatmaps(
     device: torch.device,
     snr: float = 10.0,
     num_samples: int = 4,
-    save_path: str = "./outputs/error_heatmaps.png",
+    save_path: str = os.path.join(config.OUTPUTS_DIR, "error_heatmaps.png"),
 ):
     """
     Visualizes original images, reconstructed images, and their absolute pixel error heatmaps.
@@ -201,7 +201,7 @@ def plot_constellation(
     loader: DataLoader,
     device: torch.device,
     num_batches: int = 5,
-    save_path: str = "./outputs/symbol_constellation.png",
+    save_path: str = os.path.join(config.OUTPUTS_DIR, "symbol_constellation.png"),
 ):
     """
     Plots the 2D distribution/constellation of transmitted channel symbols z in latent space,
@@ -265,7 +265,7 @@ def plot_training_curves(
     train_mse: Optional[List[float]] = None,
     val_psnr: Optional[List[float]] = None,
     history_dict: Optional[Dict[str, List[Any]]] = None,
-    save_path: str = "./outputs/training_curves.png",
+    save_path: str = os.path.join(config.OUTPUTS_DIR, "training_curves.png"),
 ):
     """
     Plots training loss (MSE), validation PSNR, and learning rate over training epochs.
@@ -362,11 +362,15 @@ def plot_training_curves(
 
 def main():
     parser = argparse.ArgumentParser(description="Generate Deep JSCC Publication Plots")
+    parser.add_argument("--exp-name", type=str, default=config.DEFAULT_EXP_NAME, help="Experiment name (e.g. experiment_2)")
     parser.add_argument("--checkpoint", type=str, default=config.BEST_MODEL_PATH, help="Model checkpoint")
     parser.add_argument("--data-dir", type=str, default=config.DATA_DIR, help="Path to CIFAR-10 data")
     parser.add_argument("--channel-c", type=int, default=config.CHANNEL_C, help="Channel bandwidth parameter 'c'")
     parser.add_argument("--all", action="store_true", help="Generate all types of plots")
     args = parser.parse_args()
+
+    exp_dir = os.path.join(config.EXPERIMENTS_DIR, args.exp_name)
+    os.makedirs(exp_dir, exist_ok=True)
 
     # Device
     device = config.get_device()
@@ -389,8 +393,7 @@ def main():
     # Load Data
     _, test_loader = get_cifar10_loaders(data_dir=args.data_dir, batch_size=config.BATCH_SIZE, num_workers=config.NUM_WORKERS)
 
-    os.makedirs(config.OUTPUTS_DIR, exist_ok=True)
-    print(f"\nGenerating Deep JSCC Plots in {config.OUTPUTS_DIR}/ ...\n" + "=" * 50)
+    print(f"\nGenerating Deep JSCC Plots in {exp_dir}/ ...\n" + "=" * 50)
 
     # 1. PSNR vs SNR Curve
     snr_range = config.TEST_SNRS
@@ -415,7 +418,7 @@ def main():
             psnr = 10.0 * math.log10(1.0 / max(avg_mse, 1e-10))
             psnr_results.append(psnr)
 
-    plot_psnr_vs_snr(snr_range, psnr_results, save_path=os.path.join(config.OUTPUTS_DIR, "psnr_vs_snr.png"))
+    plot_psnr_vs_snr(snr_range, psnr_results, save_path=os.path.join(exp_dir, "psnr_vs_snr.png"))
 
     # 2. Reconstruction Comparison Grid
     plot_reconstruction_grid(
@@ -424,7 +427,7 @@ def main():
         device=device,
         snr_list=[0.0, 10.0, 20.0],
         num_samples=5,
-        save_path=os.path.join(config.OUTPUTS_DIR, "reconstruction_grid.png"),
+        save_path=os.path.join(exp_dir, "reconstruction_grid.png"),
     )
 
     # 3. Error Heatmaps
@@ -434,7 +437,7 @@ def main():
         device=device,
         snr=config.DEFAULT_SNR_DB,
         num_samples=4,
-        save_path=os.path.join(config.OUTPUTS_DIR, "error_heatmaps.png"),
+        save_path=os.path.join(exp_dir, "error_heatmaps.png"),
     )
 
     # 4. Transmitted Channel Symbol Constellation
@@ -443,14 +446,21 @@ def main():
         loader=test_loader,
         device=device,
         num_batches=5,
-        save_path=os.path.join(config.OUTPUTS_DIR, "symbol_constellation.png"),
+        save_path=os.path.join(exp_dir, "symbol_constellation.png"),
     )
 
-    # 5. Training / Validation Curves (from Experiment 2 history)
-    plot_training_curves(save_path=os.path.join(config.OUTPUTS_DIR, "training_curves.png"))
+    # 5. Training / Validation Curves (from Experiment history)
+    history_file = os.path.join(exp_dir, "history.json")
+    hist_dict = None
+    if os.path.exists(history_file):
+        import json
+        with open(history_file, "r") as f:
+            hist_dict = json.load(f)
+
+    plot_training_curves(history_dict=hist_dict, save_path=os.path.join(exp_dir, "training_curves.png"))
 
     print("=" * 50)
-    print("All plots generated successfully in ./outputs/ directory!")
+    print(f"All plots generated successfully in {exp_dir}/ directory!")
 
 
 
