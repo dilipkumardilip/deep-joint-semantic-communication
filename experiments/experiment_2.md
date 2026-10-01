@@ -3,9 +3,9 @@
 ## 1. Executive Summary & Purpose
 This experiment trains the Deep Joint Source-Channel Communication (Deep JSCC) image transmission model for **50 epochs** utilizing a **Cosine Annealing Learning Rate Scheduler** decaying from `0.001` down to `1e-05`.
 
-- **Timestamp:** 2026-10-02 01:23:23
+- **Timestamp:** 2026-10-02 01:25:32
 - **Dataset:** CIFAR-10 (70% Train / 30% Val)
-- **Total Training Duration:** **6 min 25 sec** (385.2 seconds total)
+- **Total Training Duration:** **6m 25.2s** (385.2 seconds total)
 - **Average Epoch Duration:** **7.70 seconds/epoch**
 - **Status:** Completed Successfully
 
@@ -16,7 +16,7 @@ This experiment trains the Deep Joint Source-Channel Communication (Deep JSCC) i
 | Parameter | Experiment 1 (Baseline) | Experiment 2 (Current) | Rationale |
 | :--- | :--- | :--- | :--- |
 | **Epochs** | 1 (Sanity test) | **50 epochs** | Allow full convergence of convolutional representations. |
-| **Total Training Time** | ~8 seconds | **6m 25s** (385.2s) | 50 full optimization passes across 35,000 training images. |
+| **Total Training Time** | ~8 seconds | **6m 25.2s** (385.2s) | 50 full optimization passes across 35,000 training images. |
 | **LR Schedule** | None (Static 0.001) | **Cosine Annealing** (`0.001` $\to$ `1e-05`) | Smoothly anneals step size to settle into narrow optimal minima. |
 | **Minimum LR (`eta_min`)** | N/A | **`1e-05`** | Prevents gradient oscillations in later epochs. |
 | **Batch Size** | 64 | **64** | Stable stochastic gradient descent on MPS. |
@@ -27,7 +27,7 @@ This experiment trains the Deep Joint Source-Channel Communication (Deep JSCC) i
 
 ## 3. Performance & Computational Metrics Summary
 
-- **Total Training Duration:** `6 min 25 sec` (`385.2s`)
+- **Total Training Duration:** `6m 25.2s` (`385.2s`)
 - **Throughput / Speed:** `7.70 s/epoch` (~4,545 images/sec on MPS)
 - **Best Validation PSNR:** `27.61 dB`
 - **Held-Out Test MSE:** `0.00173`
@@ -57,7 +57,7 @@ This experiment trains the Deep Joint Source-Channel Communication (Deep JSCC) i
 ## 5. Key Observations & In-Depth Insights
 
 1. **Training Efficiency & Time:**
-   - Training completed in **6 minutes 25 seconds** on Apple Silicon (`mps`), demonstrating high computational efficiency for end-to-end convolutional encoder-decoder optimization.
+   - Training completed in **6m 25.2s** on Apple Silicon (`mps`), demonstrating high computational efficiency for end-to-end convolutional encoder-decoder optimization.
    - Per-epoch duration remained consistent at **7.70s**, reflecting zero memory bottlenecks or pipeline stalls.
 
 2. **Impact of Cosine LR Scheduling:**

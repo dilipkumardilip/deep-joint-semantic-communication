@@ -417,12 +417,21 @@ def generate_experiment_report(
     """Generates a comprehensive Markdown documentation report for the experiment."""
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    total_time = history.get("total_time_seconds", 385.2)
-    avg_epoch_time = history.get("avg_epoch_time_seconds", 7.7)
     epoch_times = history.get("epoch_time", [])
+    total_time = float(history.get("total_time_seconds", sum(epoch_times) if epoch_times else 0.0))
+    epochs_count = len(history.get("epoch", []))
+    avg_epoch_time = float(history.get("avg_epoch_time_seconds", (total_time / max(epochs_count, 1)) if total_time > 0 else 0.0))
 
-    total_min = int(total_time // 60)
-    total_sec = int(total_time % 60)
+    hours = int(total_time // 3600)
+    minutes = int((total_time % 3600) // 60)
+    seconds = total_time % 60
+
+    if hours > 0:
+        duration_str = f"{hours}h {minutes}m {seconds:.1f}s"
+    elif minutes > 0:
+        duration_str = f"{minutes}m {seconds:.1f}s"
+    else:
+        duration_str = f"{seconds:.1f}s"
 
     # Sample rows for table (show every 5th epoch + first + last)
     table_rows = []
@@ -449,7 +458,7 @@ This experiment trains the Deep Joint Source-Channel Communication (Deep JSCC) i
 
 - **Timestamp:** {now_str}
 - **Dataset:** CIFAR-10 ({int(train_split*100)}% Train / {int((1-train_split)*100)}% Val)
-- **Total Training Duration:** **{total_min} min {total_sec} sec** ({total_time:.1f} seconds total)
+- **Total Training Duration:** **{duration_str}** ({total_time:.1f} seconds total)
 - **Average Epoch Duration:** **{avg_epoch_time:.2f} seconds/epoch**
 - **Status:** Completed Successfully
 
@@ -460,7 +469,7 @@ This experiment trains the Deep Joint Source-Channel Communication (Deep JSCC) i
 | Parameter | Experiment 1 (Baseline) | Experiment 2 (Current) | Rationale |
 | :--- | :--- | :--- | :--- |
 | **Epochs** | 1 (Sanity test) | **{epochs} epochs** | Allow full convergence of convolutional representations. |
-| **Total Training Time** | ~8 seconds | **{total_min}m {total_sec}s** ({total_time:.1f}s) | 50 full optimization passes across 35,000 training images. |
+| **Total Training Time** | ~8 seconds | **{duration_str}** ({total_time:.1f}s) | 50 full optimization passes across 35,000 training images. |
 | **LR Schedule** | None (Static {initial_lr}) | **Cosine Annealing** (`{initial_lr}` $\\to$ `{eta_min}`) | Smoothly anneals step size to settle into narrow optimal minima. |
 | **Minimum LR (`eta_min`)** | N/A | **`{eta_min}`** | Prevents gradient oscillations in later epochs. |
 | **Batch Size** | {batch_size} | **{batch_size}** | Stable stochastic gradient descent on MPS. |
@@ -471,7 +480,7 @@ This experiment trains the Deep Joint Source-Channel Communication (Deep JSCC) i
 
 ## 3. Performance & Computational Metrics Summary
 
-- **Total Training Duration:** `{total_min} min {total_sec} sec` (`{total_time:.1f}s`)
+- **Total Training Duration:** `{duration_str}` (`{total_time:.1f}s`)
 - **Throughput / Speed:** `{avg_epoch_time:.2f} s/epoch` (~4,545 images/sec on MPS)
 - **Best Validation PSNR:** `{best_val_psnr:.2f} dB`
 - **Held-Out Test MSE:** `{test_mse:.5f}`
@@ -491,7 +500,7 @@ This experiment trains the Deep Joint Source-Channel Communication (Deep JSCC) i
 ## 5. Key Observations & In-Depth Insights
 
 1. **Training Efficiency & Time:**
-   - Training completed in **{total_min} minutes {total_sec} seconds** on Apple Silicon (`mps`), demonstrating high computational efficiency for end-to-end convolutional encoder-decoder optimization.
+   - Training completed in **{duration_str}** on Apple Silicon (`mps`), demonstrating high computational efficiency for end-to-end convolutional encoder-decoder optimization.
    - Per-epoch duration remained consistent at **{avg_epoch_time:.2f}s**, reflecting zero memory bottlenecks or pipeline stalls.
 
 2. **Impact of Cosine LR Scheduling:**
