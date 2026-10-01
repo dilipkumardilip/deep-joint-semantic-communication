@@ -363,7 +363,7 @@ def main():
     print(f"\n[SUCCESS] Generated experiment report: {md_file}")
 
 
-def plot_experiment_curves(history: Dict[str, List[Any]], save_path: str):
+def plot_experiment_curves(history: Dict[str, Any], save_path: str):
     """Plots and saves the loss and PSNR curves for the experiment."""
     epochs = history["epoch"]
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(16, 4.5))
@@ -411,16 +411,33 @@ def generate_experiment_report(
     best_val_psnr: float,
     test_mse: float,
     test_psnr: float,
-    history: Dict[str, List[Any]],
+    history: Dict[str, Any],
     save_path: str,
 ):
     """Generates a comprehensive Markdown documentation report for the experiment."""
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    epoch_times = history.get("epoch_time", [])
-    total_time = float(history.get("total_time_seconds", sum(epoch_times) if epoch_times else 0.0))
-    epochs_count = len(history.get("epoch", []))
-    avg_epoch_time = float(history.get("avg_epoch_time_seconds", (total_time / max(epochs_count, 1)) if total_time > 0 else 0.0))
+    raw_epoch_times = history.get("epoch_time")
+    epoch_times: List[float] = [float(t) for t in raw_epoch_times] if isinstance(raw_epoch_times, list) else []
+
+    raw_total = history.get("total_time_seconds")
+    if isinstance(raw_total, (int, float)):
+        total_time = float(raw_total)
+    elif epoch_times:
+        total_time = float(sum(epoch_times))
+    else:
+        total_time = 0.0
+
+    raw_epochs = history.get("epoch")
+    epochs_count = len(raw_epochs) if isinstance(raw_epochs, list) else 1
+
+    raw_avg = history.get("avg_epoch_time_seconds")
+    if isinstance(raw_avg, (int, float)):
+        avg_epoch_time = float(raw_avg)
+    elif total_time > 0.0:
+        avg_epoch_time = float(total_time / max(epochs_count, 1))
+    else:
+        avg_epoch_time = 0.0
 
     hours = int(total_time // 3600)
     minutes = int((total_time % 3600) // 60)
