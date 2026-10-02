@@ -29,9 +29,10 @@ def plot_constellation(
 
     symbols = []
     with torch.no_grad():
-        for batch_idx, (images, _) in enumerate(loader):
+        for batch_idx, batch in enumerate(loader):
             if batch_idx >= num_batches:
                 break
+            images = batch[0] if isinstance(batch, (tuple, list)) else batch
             images = images.to(device)
             z = model.encoder(images)
             symbols.append(z.view(-1).cpu().numpy())

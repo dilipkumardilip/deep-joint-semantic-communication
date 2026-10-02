@@ -55,13 +55,38 @@ MODEL_REGISTRY: List[Dict[str, Any]] = [
     },
     {
         "key":         "div2k_c16",
-        "label":       "DIV2K HD Model",
-        "description": "Trained on 128×128 HD patches from DIV2K dataset. Handles high-resolution images with richer semantic features.",
-        "checkpoint":  "./checkpoints/best_jscc_model_div2k.pth",
+        "label":       "DIV2K CNN Baseline",
+        "description": "Trained on 128×128 HD patches from DIV2K (Experiment 3). 5-layer CNN baseline.",
+        "checkpoint":  "./checkpoints/experiment_3_best_model.pth",
+        "arch":        "baseline",
         "patch_size":  128,
         "channel_c":   config.CHANNEL_C,
         "dataset":     "DIV2K",
-        "badge":       "128×128 HD",
+        "badge":       "CNN 128×128",
+        "snr_db":      10.0,
+    },
+    {
+        "key":         "div2k_hd_resnet",
+        "label":       "DIV2K ResNet-HD",
+        "description": "DeepJSCC-HD with ResNet Residual Blocks and SSIM/L1 perceptual loss (Experiment 4). Sharp textures and global context.",
+        "checkpoint":  "./checkpoints/experiment_4_best_model.pth",
+        "arch":        "hd",
+        "patch_size":  128,
+        "channel_c":   config.CHANNEL_C,
+        "dataset":     "DIV2K",
+        "badge":       "ResNet + SSIM",
+        "snr_db":      10.0,
+    },
+    {
+        "key":         "div2k_ms",
+        "label":       "DIV2K Multi-Scale (Exp 5)",
+        "description": "Experiment 5: Multi-Scale Receptive Fields (1×1, 3×3, 5×5, 7×7). 608k params (3.5× fewer than ResNet-HD) achieving SOTA 28.31 dB (+1.4 dB over Exp 4)!",
+        "checkpoint":  "./checkpoints/experiment_5_best_model.pth",
+        "arch":        "ms",
+        "patch_size":  128,
+        "channel_c":   config.CHANNEL_C,
+        "dataset":     "DIV2K",
+        "badge":       "Multi-Scale (28.3 dB)",
         "snr_db":      10.0,
     },
 ]
@@ -74,21 +99,39 @@ DEVICE = config.get_device()
 def _load_model(entry: Dict[str, Any]) -> Optional[DeepJSCC]:
     """Loads a DeepJSCC model from a registry entry checkpoint. Returns None if not found."""
     ckpt_path = entry["checkpoint"]
-    model = DeepJSCC(
-        in_channels=config.IN_CHANNELS,
-        channel_c=entry["channel_c"],
-        power=config.POWER_CONSTRAINT,
-        snr_db=entry.get("snr_db", config.DEFAULT_SNR_DB),
-    ).to(DEVICE)
+    arch = entry.get("arch", "baseline")
 
     if os.path.exists(ckpt_path):
-        print(f"  Loading '{entry['label']}' from: {ckpt_path}")
         ckpt = torch.load(ckpt_path, map_location=DEVICE, weights_only=True)
-        model.load_state_dict(ckpt["model_state_dict"])
+        sd = ckpt["model_state_dict"]
+        # Auto-detect architecture from weights to guarantee compatibility
+        if "encoder.msblocks.0.b1.0.weight" in sd or entry.get("arch") == "ms":
+            arch = "ms"
+        elif "encoder.stem.0.weight" in sd or entry.get("arch") == "hd":
+            arch = "hd"
+        else:
+            arch = entry.get("arch", "baseline")
+
+        model = DeepJSCC(
+            in_channels=config.IN_CHANNELS,
+            channel_c=entry["channel_c"],
+            power=config.POWER_CONSTRAINT,
+            snr_db=entry.get("snr_db", config.DEFAULT_SNR_DB),
+            arch=arch,
+        ).to(DEVICE)
+        print(f"  Loading '{entry['label']}' ({arch}) from: {ckpt_path}")
+        model.load_state_dict(sd)
         model.eval()
         return model
     else:
-        print(f"  [INFO] Checkpoint not found for '{entry['label']}': {ckpt_path} — will use random weights.")
+        model = DeepJSCC(
+            in_channels=config.IN_CHANNELS,
+            channel_c=entry["channel_c"],
+            power=config.POWER_CONSTRAINT,
+            snr_db=entry.get("snr_db", config.DEFAULT_SNR_DB),
+            arch=arch,
+        ).to(DEVICE)
+        print(f"  [INFO] Checkpoint not found for '{entry['label']}': {ckpt_path} — will use initialized weights.")
         model.eval()
         return model
 
@@ -267,6 +310,9 @@ class SemanticCommHandler(SimpleHTTPRequestHandler):
 
         self.send_error(404, "Not found")
 
+    def do_HEAD(self) -> None:
+        self.do_GET()
+
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length)
@@ -289,7 +335,7 @@ class SemanticCommHandler(SimpleHTTPRequestHandler):
 
     def handle_select_model(self, data: Dict[str, Any]) -> None:
         global _active_key
-        key = data.get("key", "")
+        key = data.get("key") or data.get("model_key", "")
         if key not in LOADED_MODELS:
             self.send_json_response({"error": f"Unknown model key: '{key}'"}, status=400)
             return
@@ -373,7 +419,13 @@ class SemanticCommHandler(SimpleHTTPRequestHandler):
             c       = entry["channel_c"]
 
             z = torch.tensor(vector_data, dtype=torch.float32, device=DEVICE)
-            # Accept flat, 3-D (C,H,W), or 4-D (1,C,H,W)
+            expected_k = c * p * p
+            if z.numel() != expected_k:
+                self.send_json_response({
+                    "error": f"Symbol count mismatch: input has {z.numel()} symbols, but active model '{entry['label']}' expects {expected_k} symbols ({c}×{p}×{p}). Please re-encode your image with the active model."
+                }, status=400)
+                return
+
             if z.dim() == 1:
                 z = z.view(1, c, p, p)
             elif z.dim() == 3:
@@ -410,6 +462,13 @@ class SemanticCommHandler(SimpleHTTPRequestHandler):
             patch   = entry["patch_size"]
 
             z = torch.tensor(vector_data, dtype=torch.float32, device=DEVICE)
+            expected_k = c * p * p
+            if z.numel() != expected_k:
+                self.send_json_response({
+                    "error": f"Symbol count mismatch: input has {z.numel()} symbols, but active model '{entry['label']}' expects {expected_k} symbols ({c}×{p}×{p}). Please click Encode first."
+                }, status=400)
+                return
+
             if z.dim() == 1:
                 z = z.view(1, c, p, p)
             elif z.dim() == 3:

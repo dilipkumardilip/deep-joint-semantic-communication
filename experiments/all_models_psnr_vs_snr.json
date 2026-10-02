@@ -1,0 +1,114 @@
+{
+  "Exp 2: CIFAR-10 Baseline": {
+    "short_name": "Exp 2 (CIFAR-10 CNN)",
+    "snrs": [
+      -5.0,
+      0.0,
+      5.0,
+      10.0,
+      15.0,
+      20.0,
+      25.0
+    ],
+    "psnrs": [
+      15.88,
+      20.56,
+      24.69,
+      27.4,
+      28.73,
+      29.27,
+      29.44
+    ],
+    "color": "#9b59b6",
+    "linestyle": ":",
+    "marker": "^",
+    "params": 156252,
+    "badge": "32\u00d732, 156k params",
+    "dataset": "cifar10",
+    "arch": "baseline"
+  },
+  "Exp 3: DIV2K CNN Baseline": {
+    "short_name": "Exp 3 (DIV2K CNN)",
+    "snrs": [
+      -5.0,
+      0.0,
+      5.0,
+      10.0,
+      15.0,
+      20.0,
+      25.0
+    ],
+    "psnrs": [
+      17.8,
+      18.92,
+      19.34,
+      19.48,
+      19.53,
+      19.54,
+      19.54
+    ],
+    "color": "#e74c3c",
+    "linestyle": "--",
+    "marker": "s",
+    "params": 156252,
+    "badge": "128\u00d7128, 156k params",
+    "dataset": "div2k",
+    "arch": "baseline"
+  },
+  "Exp 4: DIV2K ResNet-HD": {
+    "short_name": "Exp 4 (ResNet-HD)",
+    "snrs": [
+      -5.0,
+      0.0,
+      5.0,
+      10.0,
+      15.0,
+      20.0,
+      25.0
+    ],
+    "psnrs": [
+      17.51,
+      21.92,
+      25.22,
+      26.91,
+      27.61,
+      27.83,
+      27.9
+    ],
+    "color": "#f39c12",
+    "linestyle": "-.",
+    "marker": "D",
+    "params": 2150493,
+    "badge": "128\u00d7128, 2.15M params",
+    "dataset": "div2k",
+    "arch": "hd"
+  },
+  "Exp 5: DIV2K Multi-Scale (Ours)": {
+    "short_name": "Exp 5 (Multi-Scale, SOTA)",
+    "snrs": [
+      -5.0,
+      0.0,
+      5.0,
+      10.0,
+      15.0,
+      20.0,
+      25.0
+    ],
+    "psnrs": [
+      16.95,
+      21.52,
+      25.55,
+      28.3,
+      29.66,
+      30.18,
+      30.36
+    ],
+    "color": "#27ae60",
+    "linestyle": "-",
+    "marker": "o",
+    "params": 608225,
+    "badge": "128\u00d7128, 608k params (3.5\u00d7 smaller)",
+    "dataset": "div2k",
+    "arch": "ms"
+  }
+}

@@ -29,6 +29,7 @@ import torchvision.transforms as transforms
 
 import config
 from dataset import get_div2k_loaders, DIV2KDataset
+from losses import CompositeJSCCLoss
 from model import DeepJSCC
 from plotting import plot_training_curves
 from utils.metrics import calculate_psnr
@@ -86,6 +87,7 @@ def get_div2k_split(
     num_workers: int = config.NUM_WORKERS,
     augment: bool = config.AUGMENT,
     seed: int = config.RANDOM_SEED,
+    patches_per_image: int = 4,
 ) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """
     Loads DIV2K HR images and splits into train / val loaders (patch-based).
@@ -101,6 +103,7 @@ def get_div2k_split(
         num_workers=num_workers,
         augment=augment,
         seed=seed,
+        patches_per_image=patches_per_image,
     )
     return train_dl, val_dl, val_dl  # val used as test too
 
@@ -121,25 +124,37 @@ def train_one_epoch(
     """Runs one training epoch over the training set."""
     model.train()
     running_loss = 0.0
+    running_mse = 0.0
     total_samples = 0
+    total_batches = len(train_loader)
 
-    for batch in train_loader:
+    for batch_idx, batch in enumerate(train_loader):
         # DIV2K returns raw tensors; CIFAR-10 returns (images, labels) tuples
         images = batch if isinstance(batch, torch.Tensor) else batch[0]
         images = images.to(device)
         batch_sz = images.size(0)
 
         reconstructed = model(images, snr_db=snr_db)
-        loss = criterion(reconstructed, images)
+        if isinstance(criterion, CompositeJSCCLoss):
+            loss, metrics = criterion(reconstructed, images)
+            batch_mse = metrics["mse"]
+        else:
+            loss = criterion(reconstructed, images)
+            batch_mse = loss.item()
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         running_loss += loss.item() * batch_sz
+        running_mse += batch_mse * batch_sz
         total_samples += batch_sz
 
-    epoch_mse = running_loss / total_samples
+        if (batch_idx + 1) % 20 == 0 or (batch_idx + 1) == total_batches or (batch_idx + 1) in [1, 5]:
+            cur_psnr = calculate_psnr(running_mse / max(total_samples, 1))
+            print(f"    --> Batch {batch_idx+1:3d}/{total_batches} | Step Loss: {loss.item():.4f} | Running PSNR: {cur_psnr:.2f} dB", flush=True)
+
+    epoch_mse = running_mse / max(total_samples, 1)
     epoch_psnr = calculate_psnr(epoch_mse)
     return epoch_mse, epoch_psnr
 
@@ -155,6 +170,7 @@ def evaluate(
     """Evaluates the model on a DataLoader without gradient computation."""
     model.eval()
     running_loss = 0.0
+    running_mse = 0.0
     total_samples = 0
 
     with torch.no_grad():
@@ -164,12 +180,18 @@ def evaluate(
             batch_sz = images.size(0)
 
             reconstructed = model(images, snr_db=snr_db)
-            loss = criterion(reconstructed, images)
+            if isinstance(criterion, CompositeJSCCLoss):
+                loss, metrics = criterion(reconstructed, images)
+                batch_mse = metrics["mse"]
+            else:
+                loss = criterion(reconstructed, images)
+                batch_mse = loss.item()
 
             running_loss += loss.item() * batch_sz
+            running_mse += batch_mse * batch_sz
             total_samples += batch_sz
 
-    avg_mse = running_loss / total_samples
+    avg_mse = running_mse / max(total_samples, 1)
     avg_psnr = calculate_psnr(avg_mse)
     return avg_mse, avg_psnr
 
@@ -196,6 +218,9 @@ def main() -> None:
     parser.add_argument("--eta-min", type=float, default=1e-6, help="Min LR for Cosine Annealing")
     parser.add_argument("--channel-c", type=int, default=config.CHANNEL_C, help="Latent channel feature count 'c'")
     parser.add_argument("--snr", type=float, default=config.DEFAULT_SNR_DB, help="Training SNR in dB")
+    parser.add_argument("--arch", type=str, default=None, choices=["baseline", "hd", "ms"], help="Model architecture: 'baseline' (5-layer CNN), 'hd' (ResNet residual blocks), or 'ms' (Multi-Scale Inception blocks). Default: auto")
+    parser.add_argument("--loss", type=str, default=None, choices=["mse", "composite"], help="Loss function: 'mse' or 'composite' (MSE + L1 + SSIM). Default: auto")
+    parser.add_argument("--patches-per-image", type=int, default=4, help="Random patches per image per epoch for DIV2K (default: 4)")
     parser.add_argument("--patch-size", type=int, default=config.PATCH_SIZE, help="Patch size for DIV2K (ignored for CIFAR-10)")
     parser.add_argument("--train-split", type=float, default=config.TRAIN_SPLIT, help="Train fraction (CIFAR-10 only)")
     parser.add_argument("--train-ratio", type=float, default=config.TRAIN_RATIO, help="Train fraction (DIV2K only: 0.85 → 680/120)")
@@ -203,13 +228,25 @@ def main() -> None:
     parser.add_argument("--data-dir", type=str, default=config.DATA_DIR, help="Base data directory")
     parser.add_argument("--div2k-dir", type=str, default=config.DIV2K_HR_DIR, help="DIV2K HR images folder")
     parser.add_argument("--no-augment", action="store_true", help="Disable augmentation for DIV2K training")
+    parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume training from")
     args = parser.parse_args()
+
+    # Auto-resolve architecture and loss if not explicitly provided
+    arch = args.arch
+    if not arch:
+        arch = "hd" if args.dataset == "div2k" else "baseline"
+
+    loss_type = args.loss
+    if not loss_type:
+        loss_type = "composite" if (arch == "hd" or args.dataset == "div2k") else "mse"
 
     # -----------------------------------------------------------------------
     # 1. Device
     # -----------------------------------------------------------------------
     device = config.get_device()
     print(f"Using compute device: {device}")
+    print(f"Model Architecture  : DeepJSCC-{arch.upper()}")
+    print(f"Loss Function       : {loss_type.upper()}")
 
     # -----------------------------------------------------------------------
     # 2. Experiment directories
@@ -226,8 +263,9 @@ def main() -> None:
 
     if args.dataset == "div2k":
         print(f"\nLoading DIV2K HR dataset from: {args.div2k_dir}")
-        print(f"  Patch size : {args.patch_size}×{args.patch_size}")
-        print(f"  Train ratio: {args.train_ratio:.0%} train / {1-args.train_ratio:.0%} val")
+        print(f"  Patch size        : {args.patch_size}×{args.patch_size}")
+        print(f"  Train ratio       : {args.train_ratio:.0%} train / {1-args.train_ratio:.0%} val")
+        print(f"  Patches per image : {args.patches_per_image}")
         train_loader, val_loader, test_loader = get_div2k_split(
             hr_dir=args.div2k_dir,
             patch_size=args.patch_size,
@@ -237,6 +275,7 @@ def main() -> None:
             num_workers=config.NUM_WORKERS,
             augment=not args.no_augment,
             seed=config.RANDOM_SEED,
+            patches_per_image=args.patches_per_image,
         )
         dataset_label = "DIV2K"
         patch_size_used = args.patch_size
@@ -251,23 +290,28 @@ def main() -> None:
         dataset_label = "CIFAR-10"
         patch_size_used = 32
 
-    print(f"  Training set  : {len(train_loader.dataset)} images ({len(train_loader)} batches)")   # type: ignore[arg-type]
+    print(f"  Training set  : {len(train_loader.dataset)} patches ({len(train_loader)} batches)")   # type: ignore[arg-type]
     print(f"  Validation set: {len(val_loader.dataset)} images ({len(val_loader)} batches)")       # type: ignore[arg-type]
 
     # -----------------------------------------------------------------------
     # 4. Model, loss, optimizer, scheduler
     # -----------------------------------------------------------------------
-    print(f"\nInitializing Deep JSCC (c={args.channel_c}, SNR={args.snr} dB, Epochs={args.epochs})...")
+    print(f"\nInitializing Deep JSCC-{arch.upper()} (c={args.channel_c}, SNR={args.snr} dB, Epochs={args.epochs})...")
     model = DeepJSCC(
         in_channels=config.IN_CHANNELS,
         channel_c=args.channel_c,
         power=config.POWER_CONSTRAINT,
         snr_db=args.snr,
+        arch=arch,
     ).to(device)
 
-    criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=config.WEIGHT_DECAY)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=args.eta_min)
+    total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total trainable parameters: {total_params:,}")
+
+    if loss_type == "composite":
+        criterion = CompositeJSCCLoss(alpha=0.5, beta=0.3, gamma=0.2)
+    else:
+        criterion = nn.MSELoss()
 
     # -----------------------------------------------------------------------
     # 5. Training loop
@@ -287,11 +331,36 @@ def main() -> None:
         "epoch_time": [],
     }
 
+    start_epoch = 1
+    checkpoint = None
+    if args.resume and os.path.isfile(args.resume):
+        print(f"\nLoading checkpoint to resume: {args.resume}")
+        checkpoint = torch.load(args.resume, map_location=device)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        if "epoch" in checkpoint:
+            start_epoch = checkpoint["epoch"] + 1
+        if "val_psnr" in checkpoint:
+            best_val_psnr = checkpoint["val_psnr"]
+        print(f"Resumed successfully at Epoch {start_epoch} (Prior Best Val PSNR: {best_val_psnr:.2f} dB)")
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=config.WEIGHT_DECAY)
+    if checkpoint is not None and "optimizer_state_dict" in checkpoint:
+        try:
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        except Exception as e:
+            print(f"Notice: optimizer state not restored ({e}), using fresh optimizer.")
+        for param_group in optimizer.param_groups:
+            param_group["lr"] = args.lr
+            param_group["initial_lr"] = args.lr
+
+    remaining_epochs = max(args.epochs - start_epoch + 1, 1)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=remaining_epochs, eta_min=args.eta_min)
+
     print("\n" + "=" * 90)
     print(f"{'Epoch':<7} {'LR':<12} {'Train MSE':<12} {'Train PSNR':<13} {'Val MSE':<12} {'Val PSNR':<12} {'Time':<8} {'Status'}")
     print("=" * 90)
 
-    for epoch in range(1, args.epochs + 1):
+    for epoch in range(start_epoch, args.epochs + 1):
         epoch_start = time.time()
         current_lr = optimizer.param_groups[0]["lr"]
 
@@ -401,16 +470,19 @@ def main() -> None:
         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "device": str(device),
         "model": {
+            "arch": arch,
             "in_channels": config.IN_CHANNELS,
             "channel_c": args.channel_c,
             "power": config.POWER_CONSTRAINT,
             "image_size": [patch_size_used, patch_size_used],
             "transmitted_symbols_k": args.channel_c * (patch_size_used // 4) * (patch_size_used // 4),
+            "total_parameters": total_params,
         },
         "dataset": {
             "name": dataset_label,
             "data_dir": args.data_dir if args.dataset == "cifar10" else args.div2k_dir,
             "patch_size": patch_size_used,
+            "patches_per_image": args.patches_per_image if args.dataset == "div2k" else 1,
             "train_split": args.train_split if args.dataset == "cifar10" else args.train_ratio,
             "batch_size": args.batch_size,
             "num_workers": config.NUM_WORKERS,
@@ -428,7 +500,7 @@ def main() -> None:
             "eta_min": args.eta_min,
             "weight_decay": config.WEIGHT_DECAY,
             "scheduler": "CosineAnnealingLR",
-            "loss": "MSELoss",
+            "loss": loss_type,
             "optimizer": "Adam",
         },
         "results": {
@@ -449,6 +521,19 @@ def main() -> None:
     with open(exp_config_path, "w", encoding="utf-8") as f:
         json.dump(exp_config, f, indent=2)
     print(f"[SUCCESS] Config snapshot → {exp_config_path}")
+
+    # -----------------------------------------------------------------------
+    # 11. Auto-generate all publication plots for this experiment
+    # -----------------------------------------------------------------------
+    print(f"\n[AUTO-PLOTTING] Generating full publication plot suite for {args.exp_name}...")
+    try:
+        import subprocess
+        subprocess.run(
+            [".venv/bin/python", "plots.py", "--exp-name", args.exp_name],
+            check=False,
+        )
+    except Exception as e:
+        print(f"[NOTE] Automatic plot generation skipped: {e}")
 
 
 if __name__ == "__main__":

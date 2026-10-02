@@ -142,12 +142,14 @@ class DIV2KDataset(Dataset):
         train_ratio: float = 0.85,
         augment: bool = True,
         seed: int = 42,
+        patches_per_image: int = 1,
     ):
         super().__init__()
         self.root_dir = Path(root_dir)
         self.patch_size = patch_size
         self.split = split
         self.augment = augment and (split == "train")
+        self.patches_per_image = max(1, patches_per_image) if split == "train" else 1
 
         if not self.root_dir.exists():
             raise FileNotFoundError(
@@ -187,7 +189,7 @@ class DIV2KDataset(Dataset):
         self._to_tensor = transforms.ToTensor()
 
     def __len__(self) -> int:
-        return len(self.image_paths)
+        return len(self.image_paths) * self.patches_per_image
 
     def _random_crop(self, img: Image.Image) -> Image.Image:
         """Randomly crop a patch_size × patch_size region from a PIL image."""
@@ -216,7 +218,8 @@ class DIV2KDataset(Dataset):
         return img.crop((left, top, left + self.patch_size, top + self.patch_size))
 
     def __getitem__(self, index: int) -> torch.Tensor:
-        img = Image.open(self.image_paths[index]).convert("RGB")
+        image_idx = index // self.patches_per_image
+        img = Image.open(self.image_paths[image_idx]).convert("RGB")
 
         # Crop
         if self.split == "train":
@@ -248,22 +251,10 @@ def get_div2k_loaders(
     num_workers: int = config.NUM_WORKERS,
     augment: bool = True,
     seed: int = config.RANDOM_SEED,
+    patches_per_image: int = 4,
 ) -> Tuple[DataLoader, DataLoader]:
     """
     Returns train and val DataLoaders for the DIV2K dataset.
-
-    Args:
-        hr_dir (str): Path to the folder with DIV2K HR .png images.
-        patch_size (int): Square patch size to extract per image (default: 128).
-        train_ratio (float): Fraction of 800 images used for training (default: 0.85 → 680 train / 120 val).
-        batch_size (int): Training batch size (default: 16).
-        val_batch_size (int): Validation batch size (default: 8).
-        num_workers (int): DataLoader worker threads.
-        augment (bool): Apply random flips/rotations during training.
-        seed (int): Reproducibility seed.
-
-    Returns:
-        train_loader, val_loader
     """
     train_dataset = DIV2KDataset(
         root_dir=hr_dir,
@@ -272,6 +263,7 @@ def get_div2k_loaders(
         train_ratio=train_ratio,
         augment=augment,
         seed=seed,
+        patches_per_image=patches_per_image,
     )
     val_dataset = DIV2KDataset(
         root_dir=hr_dir,

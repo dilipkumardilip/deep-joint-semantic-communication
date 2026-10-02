@@ -28,7 +28,8 @@ def plot_reconstruction_grid(
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     model.eval()
 
-    images, _ = next(iter(loader))
+    batch = next(iter(loader))
+    images = batch[0] if isinstance(batch, (tuple, list)) else batch
     images = images[:num_samples].to(device)
 
     reconstructions = {}
@@ -79,7 +80,8 @@ def plot_reconstruction_comparison(
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     model.eval()
 
-    images, _ = next(iter(loader))
+    batch = next(iter(loader))
+    images = batch[0] if isinstance(batch, (tuple, list)) else batch
     images = images[:num_samples].to(device)
 
     reconstructions = {}

@@ -15,6 +15,9 @@ env/
 .idea/
 .vscode/
 
+# Logs
+*.log
+
 # Weights & Data
 *.pt
 *.pth
