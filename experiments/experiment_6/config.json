@@ -1,0 +1,36 @@
+{
+  "experiment_name": "experiment_6",
+  "timestamp": "2026-10-05 14:41:07",
+  "device": "mps",
+  "model": {
+    "arch": "ms",
+    "patch_size": 256,
+    "channel_c": 16,
+    "total_parameters": 608225
+  },
+  "training": {
+    "epochs": 1,
+    "batch_size": 8,
+    "grad_accum": 2,
+    "effective_batch_size": 16,
+    "initial_lr": 0.0001,
+    "snr_db": 10.0,
+    "loss": "composite"
+  },
+  "results": {
+    "best_val_psnr_db": 16.29,
+    "snr_sweep": {
+      "-5.0": 15.64,
+      "0.0": 16.2,
+      "5.0": 16.38,
+      "10.0": 16.43,
+      "15.0": 16.45,
+      "20.0": 16.45,
+      "25.0": 16.46
+    }
+  },
+  "paths": {
+    "checkpoint": "./checkpoints/experiment_6_best_model.pth",
+    "experiment_dir": "./experiments/experiment_6"
+  }
+}

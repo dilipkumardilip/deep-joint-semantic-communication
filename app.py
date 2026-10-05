@@ -89,6 +89,18 @@ MODEL_REGISTRY: List[Dict[str, Any]] = [
         "badge":       "Multi-Scale (28.3 dB)",
         "snr_db":      10.0,
     },
+    {
+        "key":         "div2k_ultra_hd_256",
+        "label":       "DIV2K Ultra-HD (256×256)",
+        "description": "Experiment 6: Ultra-High-Resolution 256×256 training with Multi-Scale Inception features. Maximizes fine spatial detail and macro-semantic coherence.",
+        "checkpoint":  "./checkpoints/experiment_6_best_model.pth",
+        "arch":        "ms",
+        "patch_size":  256,
+        "channel_c":   config.CHANNEL_C,
+        "dataset":     "DIV2K",
+        "badge":       "Ultra-HD 256px",
+        "snr_db":      10.0,
+    },
 ]
 
 DEVICE = config.get_device()
