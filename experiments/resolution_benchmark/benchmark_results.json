@@ -1,0 +1,123 @@
+{
+  "64": {
+    "milestones": {
+      "1": {
+        "val_psnr": 11.32,
+        "checkpoint": "./checkpoints/resolution_benchmark/res_64px_ep_1.pth",
+        "snr_sweep": {
+          "-5.0": 11.33,
+          "0.0": 11.32,
+          "5.0": 11.32,
+          "10.0": 11.32,
+          "15.0": 11.32,
+          "20.0": 11.32,
+          "25.0": 11.32
+        }
+      }
+    },
+    "history": {
+      "epoch": [
+        1,
+        1
+      ],
+      "train_psnr": [
+        10.75,
+        11.04
+      ],
+      "val_psnr": [
+        11.37,
+        11.32
+      ]
+    }
+  },
+  "128": {
+    "milestones": {
+      "1": {
+        "val_psnr": 11.37,
+        "checkpoint": "./checkpoints/resolution_benchmark/res_128px_ep_1.pth",
+        "snr_sweep": {
+          "-5.0": 11.39,
+          "0.0": 11.37,
+          "5.0": 11.37,
+          "10.0": 11.37,
+          "15.0": 11.37,
+          "20.0": 11.37,
+          "25.0": 11.37
+        }
+      }
+    },
+    "history": {
+      "epoch": [
+        1,
+        1
+      ],
+      "train_psnr": [
+        11.03,
+        11.04
+      ],
+      "val_psnr": [
+        11.3,
+        11.37
+      ]
+    }
+  },
+  "256": {
+    "milestones": {
+      "1": {
+        "val_psnr": 10.8,
+        "checkpoint": "./checkpoints/resolution_benchmark/res_256px_ep_1.pth",
+        "snr_sweep": {
+          "-5.0": 10.8,
+          "0.0": 10.8,
+          "5.0": 10.8,
+          "10.0": 10.8,
+          "15.0": 10.8,
+          "20.0": 10.8,
+          "25.0": 10.8
+        }
+      }
+    },
+    "history": {
+      "epoch": [
+        1,
+        1
+      ],
+      "train_psnr": [
+        9.66,
+        10.55
+      ],
+      "val_psnr": [
+        10.9,
+        10.8
+      ]
+    }
+  },
+  "512": {
+    "milestones": {
+      "1": {
+        "val_psnr": 11.2,
+        "checkpoint": "./checkpoints/resolution_benchmark/res_512px_ep_1.pth",
+        "snr_sweep": {
+          "-5.0": 11.18,
+          "0.0": 11.2,
+          "5.0": 11.2,
+          "10.0": 11.2,
+          "15.0": 11.2,
+          "20.0": 11.2,
+          "25.0": 11.2
+        }
+      }
+    },
+    "history": {
+      "epoch": [
+        1
+      ],
+      "train_psnr": [
+        11.2
+      ],
+      "val_psnr": [
+        11.2
+      ]
+    }
+  }
+}
